@@ -1,0 +1,34 @@
+{
+  "brand": {
+    "name": "Law Dog",
+    "logoText": "Law Dog",
+    "accent": "#7A2E2E",
+    "background": "#0E0E10",
+    "mode": "dark"
+  },
+  "vocabulary": {
+    "entity": "Matter",
+    "entityPlural": "Matters",
+    "item": "Timeline Event",
+    "itemPlural": "Timeline"
+  },
+  "panels": ["EntityList", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix"],
+  "defaultLayout": "Classic",
+  "chat": {
+    "suggestedQuestions": [
+      "What is unexamined in this matter?",
+      "What does the other side have to prove?",
+      "Where is the record silent?",
+      "What expires next?"
+    ]
+  },
+  "data": {
+    "mode": "lawdog-cube",
+    "lawdog": {
+      "store": "cube",
+      "url": "https://aryjtzlawkbazvqsjozf.supabase.co",
+      "anonKey": "SET_VITE_LAWDOG_ANON_KEY",
+      "caseId": "ce111111-0000-4000-8000-00000000ce11"
+    }
+  }
+}
