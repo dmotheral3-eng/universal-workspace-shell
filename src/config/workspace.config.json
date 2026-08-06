@@ -1,0 +1,28 @@
+{
+  "brand": {
+    "name": "Workspace",
+    "logoText": "Workspace",
+    "accent": "#1B3A63",
+    "background": "#F7F6F3",
+    "mode": "light"
+  },
+  "vocabulary": {
+    "entity": "Patient",
+    "entityPlural": "Patients",
+    "item": "Encounter",
+    "itemPlural": "Encounters"
+  },
+  "panels": ["EntityList", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard"],
+  "defaultLayout": "Classic",
+  "chat": {
+    "suggestedQuestions": [
+      "What does this cost?",
+      "What do I own?",
+      "What is required of me?",
+      "Why now?"
+    ]
+  },
+  "data": {
+    "mode": "mock"
+  }
+}

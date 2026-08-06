@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "notion": {
+      "enabled": true
+    },
+    "context7": {
+      "enabled": true
+    },
+    "linear": {
+      "enabled": true
+    }
+  }
+}
