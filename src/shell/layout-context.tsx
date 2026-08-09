@@ -15,6 +15,8 @@ function getPanelTitle(panelType: PanelType, instanceNum?: number): string {
     case "StageTracker": base = "Stages"; break;
     case "DocBrowser": base = "Documents"; break;
     case "MetricGrid": base = "Metrics"; break;
+    case "ClaimValue": base = "Claim value"; break;
+    case "RecoveryOutlook": base = "Recovery outlook"; break;
     default: base = panelType;
   }
   if (instanceNum && instanceNum > 1) return `${base} #${instanceNum}`;

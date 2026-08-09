@@ -16,6 +16,8 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, "index.html"),
         popout: path.resolve(__dirname, "popout.html"),
+        // fixture harness for the legal panels — see src/panels-preview.tsx
+        panels: path.resolve(__dirname, "panels.html"),
       },
     },
   },

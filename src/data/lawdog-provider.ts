@@ -84,6 +84,256 @@ export interface CoverageCell {
 
 type Row = Record<string, unknown>;
 
+// ---- legal-schema panel tables ----------------------------------------------
+//
+// Column lists below were read live from the legal schema on 2026-08-09. They are
+// the contract these types encode — do not widen a field on a hunch, and do not
+// assume a case_id exists just because its neighbours have one:
+//
+//   ld_parties        case-scoped
+//   ld_rate_card      TENANT-level. NO case_id column. Row security scopes it.
+//   ld_savings_ledger case-scoped
+//   ld_subpoenas      case-scoped
+//   ld_claim_math     keys on claim_id, NOT case_id
+//   ld_recovery_math  case-scoped
+//
+// All six live on the cube store only. The case store has no ld_* tables at all,
+// so every fetcher below returns [] there rather than issuing a doomed request.
+
+/** PostgREST hands numerics back as numbers, but a numeric arriving as a string
+ *  (driver/proxy variation) must not turn a panel into NaN soup — coerce, and
+ *  return null for anything that is not a finite number. */
+function num(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function str(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v);
+  return s === "" ? null : s;
+}
+
+function bool(v: unknown): boolean {
+  return v === true || v === "true" || v === "t" || v === 1 || v === "1";
+}
+
+export interface LdParty {
+  id: string;
+  caseId: string | null;
+  role: string | null;
+  name: string;
+  entityType: string | null;
+  counselName: string | null;
+  counselBarNo: string | null;
+  counselEmail: string | null;
+  isClient: boolean;
+  notes: string | null;
+  sortOrder: number | null;
+}
+
+export interface LdRate {
+  id: string;
+  role: string | null;
+  hourlyRate: number | null;
+  locale: string | null;
+  basis: string | null;
+}
+
+export interface LdSaving {
+  id: string;
+  caseId: string | null;
+  actionKey: string | null;
+  actionLabel: string | null;
+  hoursDisplaced: number | null;
+  rateUsed: number | null;
+  dollarsSaved: number | null;
+  estimateBasis: string | null;
+  isEstimate: boolean;
+  occurredAt: string | null;
+  sessionRef: string | null;
+}
+
+export interface LdSubpoena {
+  id: string;
+  caseId: string | null;
+  subpoenaNo: number | null;
+  target: string | null;
+  targetType: string | null;
+  whatItGets: string | null;
+  whatItProves: string | null;
+  legalImpact: string | null;
+  jurisdiction: string | null;
+  priority: string | null;
+  filingDay: string | null;
+  estCostLow: number | null;
+  estCostHigh: number | null;
+  status: string | null;
+  filedDate: string | null;
+  responseDate: string | null;
+}
+
+export interface LdClaimMath {
+  id: string;
+  claimId: string | null;
+  amountTarget: number | null;
+  amountLow: number | null;
+  amountHigh: number | null;
+  lineItems: unknown;
+  methodology: string | null;
+  createdAt: string | null;
+}
+
+/** One claim_id's worth of claim math. A claim can carry more than one row
+ *  (successive calculations); newest first. */
+export interface LdClaimGroup {
+  claimId: string;
+  rows: LdClaimMath[];
+}
+
+export interface LdRecoveryMath {
+  id: string;
+  caseId: string | null;
+  combinedLow: number | null;
+  combinedMid: number | null;
+  combinedHigh: number | null;
+  breakdown: unknown;
+  methodology: string | null;
+  lastCalculated: string | null;
+  createdAt: string | null;
+}
+
+export function mapPartyRow(r: Row): LdParty {
+  return {
+    id: String(r.id),
+    caseId: str(r.case_id),
+    role: str(r.role),
+    name: str(r.name) ?? "(unnamed)",
+    entityType: str(r.entity_type),
+    counselName: str(r.counsel_name),
+    counselBarNo: str(r.counsel_bar_no),
+    counselEmail: str(r.counsel_email),
+    isClient: bool(r.is_client),
+    notes: str(r.notes),
+    sortOrder: num(r.sort_order),
+  };
+}
+
+export function mapRateRow(r: Row): LdRate {
+  return {
+    id: String(r.id),
+    role: str(r.role),
+    hourlyRate: num(r.hourly_rate),
+    locale: str(r.locale),
+    basis: str(r.basis),
+  };
+}
+
+export function mapSavingRow(r: Row): LdSaving {
+  return {
+    id: String(r.id),
+    caseId: str(r.case_id),
+    actionKey: str(r.action_key),
+    actionLabel: str(r.action_label),
+    hoursDisplaced: num(r.hours_displaced),
+    rateUsed: num(r.rate_used),
+    dollarsSaved: num(r.dollars_saved),
+    estimateBasis: str(r.estimate_basis),
+    isEstimate: bool(r.is_estimate),
+    occurredAt: str(r.occurred_at),
+    sessionRef: str(r.session_ref),
+  };
+}
+
+export function mapSubpoenaRow(r: Row): LdSubpoena {
+  return {
+    id: String(r.id),
+    caseId: str(r.case_id),
+    subpoenaNo: num(r.subpoena_no),
+    target: str(r.target),
+    targetType: str(r.target_type),
+    whatItGets: str(r.what_it_gets),
+    whatItProves: str(r.what_it_proves),
+    legalImpact: str(r.legal_impact),
+    jurisdiction: str(r.jurisdiction),
+    priority: str(r.priority),
+    filingDay: str(r.filing_day),
+    estCostLow: num(r.est_cost_low),
+    estCostHigh: num(r.est_cost_high),
+    status: str(r.status),
+    filedDate: str(r.filed_date),
+    responseDate: str(r.response_date),
+  };
+}
+
+export function mapClaimMathRow(r: Row): LdClaimMath {
+  return {
+    id: String(r.id),
+    claimId: str(r.claim_id),
+    amountTarget: num(r.amount_target),
+    amountLow: num(r.amount_low),
+    amountHigh: num(r.amount_high),
+    lineItems: r.line_items ?? null,
+    methodology: str(r.methodology),
+    createdAt: str(r.created_at),
+  };
+}
+
+export function mapRecoveryMathRow(r: Row): LdRecoveryMath {
+  return {
+    id: String(r.id),
+    caseId: str(r.case_id),
+    combinedLow: num(r.combined_low),
+    combinedMid: num(r.combined_mid),
+    combinedHigh: num(r.combined_high),
+    breakdown: r.breakdown ?? null,
+    methodology: str(r.methodology),
+    lastCalculated: str(r.last_calculated),
+    createdAt: str(r.created_at),
+  };
+}
+
+/** Group claim math by claim_id, newest row first inside each group, groups in
+ *  stable claim_id order. Exported pure so fixtures can exercise it. */
+export function groupClaimMath(rows: LdClaimMath[]): LdClaimGroup[] {
+  const byClaim = new Map<string, LdClaimMath[]>();
+  for (const row of rows) {
+    const key = row.claimId ?? "(unassigned)";
+    const bucket = byClaim.get(key);
+    if (bucket) bucket.push(row);
+    else byClaim.set(key, [row]);
+  }
+  return [...byClaim.entries()]
+    .map(([claimId, group]) => ({
+      claimId,
+      rows: [...group].sort((a, b) => String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? ""))),
+    }))
+    .sort((a, b) => a.claimId.localeCompare(b.claimId));
+}
+
+/** sort_order first (nulls last, they are unranked not zero), then name. */
+export function sortParties(rows: LdParty[]): LdParty[] {
+  return [...rows].sort((a, b) => {
+    const ao = a.sortOrder ?? Number.MAX_SAFE_INTEGER;
+    const bo = b.sortOrder ?? Number.MAX_SAFE_INTEGER;
+    if (ao !== bo) return ao - bo;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+/** Parties grouped by role, groups ordered by their lowest sort_order. */
+export function groupPartiesByRole(rows: LdParty[]): { role: string; parties: LdParty[] }[] {
+  const byRole = new Map<string, LdParty[]>();
+  for (const p of sortParties(rows)) {
+    const key = p.role ?? "Unspecified role";
+    const bucket = byRole.get(key);
+    if (bucket) bucket.push(p);
+    else byRole.set(key, [p]);
+  }
+  return [...byRole.entries()].map(([role, parties]) => ({ role, parties }));
+}
+
 // ---- pure per-store mappers (exported for fixture testing) -------------------
 
 export function rowCaseId(store: LawDogStore, r: Row): string {
@@ -127,6 +377,15 @@ export class LawDogProvider implements DataProvider {
   /** Table naming differs between the two stores. */
   private t(logical: string): string {
     return this.cfg.store === "cube" ? `ld_${logical}` : logical;
+  }
+
+  get store(): LawDogStore {
+    return this.cfg.store;
+  }
+
+  /** The ld_* panel tables exist on the cube store and nowhere else. */
+  isCubeStore(): boolean {
+    return this.cfg.store === "cube";
   }
 
   private async q<T>(table: string, params: string): Promise<T[]> {
@@ -292,6 +551,72 @@ export class LawDogProvider implements DataProvider {
       { id: "grounds", label: "Fault grounds", value: String(grounds.length), delta: `top ${strongest.toFixed(1)}`, deltaDirection: "neutral" },
       { id: "tasks", label: "Open tasks", value: String(open), deltaDirection: open > 50 ? "down" : "neutral" },
     ];
+  }
+
+  // ---- legal-schema panel fetchers ------------------------------------------
+  //
+  // Every one of these is cube-only and returns [] on the case store, which has
+  // no ld_* tables. Callers still guard, but a fetcher must not be the thing that
+  // throws a 404 into a panel.
+
+  async listParties(entityId: string): Promise<LdParty[]> {
+    if (!this.isCubeStore()) return [];
+    const rows = await this.q<Row>(
+      "ld_parties",
+      `select=*&case_id=eq.${entityId}&order=sort_order.asc.nullslast,name.asc`
+    );
+    return sortParties(rows.map(mapPartyRow));
+  }
+
+  /** Tenant-level: ld_rate_card has NO case_id. Row security scopes the read to
+   *  the signed-in tenant — adding a case filter here would 400, not narrow. */
+  async listRateCard(): Promise<LdRate[]> {
+    if (!this.isCubeStore()) return [];
+    const rows = await this.q<Row>("ld_rate_card", "select=*&order=role.asc");
+    return rows.map(mapRateRow);
+  }
+
+  async listSavings(entityId: string): Promise<LdSaving[]> {
+    if (!this.isCubeStore()) return [];
+    const rows = await this.q<Row>(
+      "ld_savings_ledger",
+      `select=*&case_id=eq.${entityId}&order=occurred_at.desc.nullslast`
+    );
+    return rows.map(mapSavingRow);
+  }
+
+  async listSubpoenas(entityId: string): Promise<LdSubpoena[]> {
+    if (!this.isCubeStore()) return [];
+    const rows = await this.q<Row>(
+      "ld_subpoenas",
+      `select=*&case_id=eq.${entityId}&order=subpoena_no.asc.nullslast`
+    );
+    return rows.map(mapSubpoenaRow);
+  }
+
+  /**
+   * Claim math is keyed on claim_id, not case_id — there is no case column to
+   * filter on, so this reads tenant-wide (row security scopes it) and groups by
+   * claim. Narrowing to the selected matter needs a claim→case join, which lands
+   * when ld_claims is wired; until then the panel says what it is showing.
+   */
+  async listClaimMath(): Promise<LdClaimGroup[]> {
+    if (!this.isCubeStore()) return [];
+    const rows = await this.q<Row>(
+      "ld_claim_math",
+      "select=*&order=claim_id.asc.nullslast,created_at.desc"
+    );
+    return groupClaimMath(rows.map(mapClaimMathRow));
+  }
+
+  /** Newest calculation first; the panel headlines rows[0]. */
+  async listRecoveryMath(entityId: string): Promise<LdRecoveryMath[]> {
+    if (!this.isCubeStore()) return [];
+    const rows = await this.q<Row>(
+      "ld_recovery_math",
+      `select=*&case_id=eq.${entityId}&order=last_calculated.desc.nullslast`
+    );
+    return rows.map(mapRecoveryMathRow);
   }
 
   // ---- Coverage screen ------------------------------------------------------

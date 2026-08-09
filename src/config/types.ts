@@ -36,7 +36,14 @@ export type PanelType =
   | "DocBrowser"
   | "MetricGrid"
   | "MasterBoard"
-  | "CoverageMatrix";
+  | "CoverageMatrix"
+  // legal data panels — cube store only, registered per profile in *.config.json
+  | "Parties"
+  | "Rates"
+  | "Savings"
+  | "Subpoenas"
+  | "ClaimValue"
+  | "RecoveryOutlook";
 
 export interface WorkspaceConfig {
   brand: BrandConfig;

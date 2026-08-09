@@ -2,9 +2,9 @@
   "brand": {
     "name": "Law Dog",
     "logoText": "Law Dog",
-    "accent": "#7A2E2E",
-    "background": "#0E0E10",
-    "mode": "dark"
+    "accent": "#5E6AD2",
+    "background": "#FFFFFF",
+    "mode": "light"
   },
   "vocabulary": {
     "entity": "Matter",
@@ -12,7 +12,7 @@
     "item": "Timeline Event",
     "itemPlural": "Timeline"
   },
-  "panels": ["EntityList", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix"],
+  "panels": ["EntityList", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix", "Parties", "Rates", "Savings", "Subpoenas", "ClaimValue", "RecoveryOutlook"],
   "defaultLayout": "Classic",
   "chat": {
     "suggestedQuestions": [

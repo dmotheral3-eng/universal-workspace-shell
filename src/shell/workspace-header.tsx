@@ -15,7 +15,16 @@ import {
 
 const ALL_PANEL_TYPES: PanelType[] = [
   "EntityList", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix",
+  "Parties", "Rates", "Savings", "Subpoenas", "ClaimValue", "RecoveryOutlook",
 ];
+
+/** The profile decides which panels exist; this list only fixes their order.
+ *  A profile that registers no panels gets all of them, as before. */
+function availablePanelTypes(): PanelType[] {
+  const registered = getConfig().panels;
+  if (!registered || registered.length === 0) return ALL_PANEL_TYPES;
+  return ALL_PANEL_TYPES.filter((pt) => registered.includes(pt));
+}
 
 function panelLabel(panelType: PanelType): string {
   const vocab = getConfig().vocabulary;
@@ -29,6 +38,12 @@ function panelLabel(panelType: PanelType): string {
     case "MetricGrid": return "Metrics";
     case "MasterBoard": return "Master Board";
     case "CoverageMatrix": return "Coverage Matrix";
+    case "Parties": return "Parties";
+    case "Rates": return "Rates";
+    case "Savings": return "Savings";
+    case "Subpoenas": return "Subpoenas";
+    case "ClaimValue": return "Claim value";
+    case "RecoveryOutlook": return "Recovery outlook";
   }
 }
 
@@ -42,6 +57,7 @@ export function WorkspaceHeader() {
   } = useLayout();
 
   const visiblePanels = getVisiblePanelTypes();
+  const panelTypes = availablePanelTypes();
 
   const handleExport = () => {
     const json = exportLayout();
@@ -92,7 +108,7 @@ export function WorkspaceHeader() {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            {ALL_PANEL_TYPES.map((pt) => {
+            {panelTypes.map((pt) => {
               const visible = visiblePanels.includes(pt);
               return (
                 <DropdownMenuItem
@@ -112,7 +128,7 @@ export function WorkspaceHeader() {
                 Open new instance
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                {ALL_PANEL_TYPES.map((pt) => (
+                {panelTypes.map((pt) => (
                   <DropdownMenuItem
                     key={pt}
                     onClick={() => openNewInstance(pt)}
