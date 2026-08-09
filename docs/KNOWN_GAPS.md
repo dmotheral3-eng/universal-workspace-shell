@@ -54,16 +54,49 @@ panels: unknown status and priority values (neutral fallback pill), null numeric
 and dates, and both array-shaped and object-shaped `jsonb`. Run `npm run dev` and
 open `/panels.html`.
 
-## OAuth snippet removed from the initial landing
+## OAuth: implicit flow retired, PKCE live (2026-08-09)
 
-The Bolt export shipped `src/data/lawdog-auth-oauth.ts` as a compilable `.ts` file,
-but its own header declared it a paste-in snippet ("OAuth additions for
-`src/data/lawdog-auth.ts` — append these to the existing module"). It referenced
-symbols private to `lawdog-auth.ts` (`requireCfg`, `LawDogSession`, `store`), had
-**zero importers**, and was the only file that failed `tsc`. It was removed in the
-landing PR so the tree builds. The Google/Azure OAuth flow it documents
-(`signInWithProvider`, `consumeOAuthRedirect`) is **not yet integrated** and should be
-folded into `lawdog-auth.ts` properly in a follow-on PR.
+**Implicit is gone.** It is what caused the 2026-08-09 incident: a production
+sign-in redirected to a stale dev host and carried `access_token`,
+`provider_token` and `refresh_token` in the URL **fragment** — three secrets in
+the address bar of a host the operator did not control. No new sign-in can take
+that path; `signInWithProvider()` requests `flow_type=pkce` unconditionally, for
+both Google and Microsoft.
+
+**PKCE is the only path for new sign-ins.** `signInWithProvider()` generates an
+86-char base64url `code_verifier` (`crypto.getRandomValues`, inside RFC 7636's
+43–128 range), derives an S256 `code_challenge` via WebCrypto `subtle.digest`,
+stashes the verifier in **sessionStorage** (`lawdog.pkce_verifier` — single-use,
+must not outlive the tab), and redirects to `/auth/v1/authorize` with
+`code_challenge` / `code_challenge_method=s256`. The provider comes back with a
+one-time `?code=` in the **query string**, which `completeOAuthRedirect()`
+exchanges at `/auth/v1/token?grant_type=pkce` (`{auth_code, code_verifier}`, anon
+key as `apikey`). An intercepted code is inert without the verifier. The code is
+stripped from the URL via `history.replaceState` **before** the exchange fires,
+so it never survives in history whether or not the exchange succeeds, and the
+verifier is removed from sessionStorage on every path including failure.
+
+Sessions still land in `localStorage` under `lawdog.session`, unchanged — same
+store the password sign-in writes, so `getAccessToken()` and the provider needed
+no edits.
+
+**Fragment fallback — sunset after one release.** `consumeOAuthRedirect()` is
+kept, unchanged and exported, purely to catch a redirect that was already in
+flight at the moment of the cutover (an operator who clicked "Continue with
+Google" against the old build). It is dead weight otherwise. **Delete
+`consumeOAuthRedirect()` and its call inside `exchangePkceCode()` in the release
+after the PKCE cutover.**
+
+**Still dashboard-side, out of scope here:** `redirect_to` is
+`window.location.origin`, correct on prod, the vercel alias and localhost alike.
+Which origins are actually honoured is governed by the Supabase URL allowlist —
+the stale dev host should be pruned from that allowlist independently of this
+change.
+
+Historical note: the Bolt export shipped this flow as `src/data/lawdog-auth-oauth.ts`,
+a paste-in snippet that referenced symbols private to `lawdog-auth.ts`, had zero
+importers, and was the only file failing `tsc`. It was removed in the landing PR;
+the flow now lives in `lawdog-auth.ts` proper.
 
 **Default profile is unaffected.** With `VITE_PROFILE` unset the app loads the
 non-lawdog `workspace` profile on mock data (`src/config/index.ts`,

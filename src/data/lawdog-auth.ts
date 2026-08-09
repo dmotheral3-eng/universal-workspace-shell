@@ -157,8 +157,16 @@ export async function getAccessToken(): Promise<string | null> {
 }
 
 // ---------------------------------------------------------------------------
-// OAuth — Google and Microsoft (Azure) via GoTrue authorize redirect
+// OAuth — Google and Microsoft (Azure) via GoTrue authorize redirect, PKCE only
 // ---------------------------------------------------------------------------
+//
+// WHY PKCE AND NOT IMPLICIT: the implicit flow hands the provider back
+// access_token, provider_token and refresh_token in the URL *fragment*. On
+// 2026-08-09 a production sign-in landed on a stale dev host and those three
+// secrets rode along in the fragment of a URL the operator did not control.
+// PKCE makes that class of leak impossible: the redirect carries a one-time
+// authorization code in the query string, and a code is inert without the
+// code_verifier — which never leaves this browser's sessionStorage.
 
 export type OAuthProvider = "google" | "azure";
 
@@ -167,15 +175,161 @@ const PROVIDER_SCOPES: Record<OAuthProvider, string | undefined> = {
   azure: "email openid profile",
 };
 
-export function signInWithProvider(provider: OAuthProvider, redirectTo?: string): void {
-  const { url } = requireCfg();
-  const target = redirectTo ?? `${window.location.origin}${window.location.pathname}`;
-  const params = new URLSearchParams({ provider, redirect_to: target });
-  const scopes = PROVIDER_SCOPES[provider];
-  if (scopes) params.set("scopes", scopes);
-  window.location.href = `${url}/auth/v1/authorize?${params.toString()}`;
+/**
+ * sessionStorage, not localStorage: the verifier is single-use and must not
+ * outlive the tab that started the sign-in. It is cleared the moment the code
+ * is exchanged (and on any failure path).
+ */
+const VERIFIER_KEY = "lawdog.pkce_verifier";
+
+function base64url(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
+/** 64 random bytes → 86 base64url chars, inside RFC 7636's 43–128 range. */
+function createVerifier(): string {
+  const bytes = new Uint8Array(64);
+  crypto.getRandomValues(bytes);
+  return base64url(bytes);
+}
+
+async function deriveChallenge(verifier: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
+  return base64url(new Uint8Array(digest));
+}
+
+function takeVerifier(): string | null {
+  try {
+    const v = sessionStorage.getItem(VERIFIER_KEY);
+    sessionStorage.removeItem(VERIFIER_KEY);
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Kick off a PKCE sign-in. Signature is unchanged (fire-and-forget, returns
+ * void) because callers are click handlers; the crypto is async, so the
+ * navigation happens once the challenge is derived.
+ *
+ * redirect_to defaults to the bare origin so the same build is correct on prod,
+ * the vercel alias and localhost. Which origins are actually accepted is
+ * governed by the Supabase URL allowlist, dashboard-side.
+ */
+export function signInWithProvider(provider: OAuthProvider, redirectTo?: string): void {
+  const { url } = requireCfg();
+  const target = redirectTo ?? window.location.origin;
+
+  void (async () => {
+    const verifier = createVerifier();
+    const challenge = await deriveChallenge(verifier);
+    try {
+      sessionStorage.setItem(VERIFIER_KEY, verifier);
+    } catch {
+      // No sessionStorage means no way to hold the verifier across the
+      // redirect, and there is no implicit flow to fall back to any more.
+      // Stop here rather than send the operator into a flow that cannot finish.
+      console.error("Law Dog sign-in unavailable: sessionStorage is blocked in this browser.");
+      return;
+    }
+
+    const params = new URLSearchParams({
+      provider,
+      flow_type: "pkce",
+      code_challenge: challenge,
+      code_challenge_method: "s256",
+      redirect_to: target,
+    });
+    const scopes = PROVIDER_SCOPES[provider];
+    if (scopes) params.set("scopes", scopes);
+    window.location.href = `${url}/auth/v1/authorize?${params.toString()}`;
+  })();
+}
+
+function scrubQuery() {
+  const q = new URLSearchParams(window.location.search);
+  for (const k of ["code", "state", "error", "error_code", "error_description"]) q.delete(k);
+  const search = q.toString();
+  window.history.replaceState(
+    null,
+    "",
+    window.location.pathname + (search ? `?${search}` : "") + window.location.hash,
+  );
+}
+
+let exchanging: Promise<LawDogSession | null> | null = null;
+
+/**
+ * Call once on load. Exchanges a PKCE `?code=` for a session; falls back to the
+ * legacy fragment handler when there is no code.
+ *
+ * Concurrent calls share one exchange — a code is single-use, and React strict
+ * mode double-invokes effects.
+ */
+export function completeOAuthRedirect(): Promise<LawDogSession | null> {
+  if (!exchanging) {
+    exchanging = exchangePkceCode().finally(() => {
+      exchanging = null;
+    });
+  }
+  return exchanging;
+}
+
+async function exchangePkceCode(): Promise<LawDogSession | null> {
+  const query = new URLSearchParams(window.location.search);
+
+  const err = query.get("error_description") ?? query.get("error");
+  if (err) {
+    takeVerifier();
+    scrubQuery();
+    throw new Error(decodeURIComponent(err.replace(/\+/g, " ")));
+  }
+
+  const code = query.get("code");
+  if (!code) return consumeOAuthRedirect();
+
+  const verifier = takeVerifier();
+  // Scrub before the network call: the code must not survive in the address bar
+  // or in history, whether or not the exchange succeeds.
+  scrubQuery();
+  if (!verifier) {
+    throw new Error(
+      "Sign-in could not be completed — this tab has no PKCE verifier. " +
+        "Start the sign-in and finish it in the same tab.",
+    );
+  }
+
+  const { url, anonKey } = requireCfg();
+  const res = await fetch(`${url}/auth/v1/token?grant_type=pkce`, {
+    method: "POST",
+    headers: { apikey: anonKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ auth_code: code, code_verifier: verifier }),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(
+      String(json.error_description ?? json.msg ?? json.error ?? "OAuth sign-in failed"),
+    );
+  }
+
+  const s = toSession(json, readEmailFromJwt(String(json.access_token)) ?? "");
+  store(s);
+  return s;
+}
+
+/**
+ * LEGACY implicit-flow fragment handler — FALLBACK ONLY, sunset after one
+ * release. No new sign-in takes this path: signInWithProvider() always requests
+ * flow_type=pkce. It stays so that a redirect already in flight at the moment
+ * of the cutover (an operator who hit "Continue with Google" against the old
+ * build) still lands in a session instead of a dead login screen.
+ *
+ * Delete this function, and its call in exchangePkceCode(), in the release
+ * after the PKCE cutover.
+ */
 export function consumeOAuthRedirect(): LawDogSession | null {
   if (!window.location.hash || window.location.hash.length < 2) return null;
 
