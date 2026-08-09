@@ -27,6 +27,33 @@ against fixture rows shaped exactly like the live `information_schema` column li
 (both stores, 13 assertions, OS-side). A repo-resident CI test is owed once the
 dispatch rail (and any test runner) is installed on this repo.
 
+## Legal data panels: two honest limits, both surfaced in the UI
+
+The six panels (Parties, Rates, Savings, Subpoenas, Claim value, Recovery outlook)
+read `legal.ld_*` on the cube store and are registered in
+`src/config/lawdog.config.json`. Two of them cannot be narrowed to the selected
+matter, and each says so on its own face rather than pretending otherwise:
+
+- **Rates** — `ld_rate_card` is tenant-level and carries **no `case_id`**. Adding a
+  case filter would 400, not narrow. Row security scopes the read. The panel notes
+  that rates apply across the workspace.
+- **Claim value** — `ld_claim_math` keys on **`claim_id`, not `case_id`**. It is
+  fetched tenant-wide and grouped by claim. Narrowing to a matter needs a
+  claim→case join, which lands when `ld_claims` is wired; the fetcher carries that
+  note (`LawDogProvider.listClaimMath`).
+
+**Empty is the expected state outside a session** — same auth reality as above: no
+anon grant, no anonymous read path. Dev and preview render every panel empty by
+design.
+
+**Fixture harness:** `panels.html` → `src/panels-preview.tsx` renders all six
+panels populated and empty, side by side, from raw fixture rows
+(`src/data/lawdog-fixtures.ts`) shaped exactly like the live column lists and run
+through the same row mappers the provider uses. It covers the shapes that break
+panels: unknown status and priority values (neutral fallback pill), null numerics
+and dates, and both array-shaped and object-shaped `jsonb`. Run `npm run dev` and
+open `/panels.html`.
+
 ## OAuth snippet removed from the initial landing
 
 The Bolt export shipped `src/data/lawdog-auth-oauth.ts` as a compilable `.ts` file,

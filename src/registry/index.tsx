@@ -8,6 +8,12 @@ import { MetricGridPanel } from "@/panels/metric-grid";
 import { DocBrowserPanel } from "@/panels/doc-browser";
 import { MasterBoardPanel } from "@/panels/master-board";
 import { CoverageMatrixPanel } from "@/panels/coverage-matrix";
+import { PartiesPanel } from "@/panels/legal/parties";
+import { RatesPanel } from "@/panels/legal/rates";
+import { SavingsPanel } from "@/panels/legal/savings";
+import { SubpoenasPanel } from "@/panels/legal/subpoenas";
+import { ClaimValuePanel } from "@/panels/legal/claim-value";
+import { RecoveryOutlookPanel } from "@/panels/legal/recovery-outlook";
 
 const panelMap: Record<PanelType, React.ComponentType> = {
   EntityList: EntityListPanel,
@@ -19,6 +25,12 @@ const panelMap: Record<PanelType, React.ComponentType> = {
   DocBrowser: DocBrowserPanel,
   MasterBoard: MasterBoardPanel,
   CoverageMatrix: CoverageMatrixPanel,
+  Parties: PartiesPanel,
+  Rates: RatesPanel,
+  Savings: SavingsPanel,
+  Subpoenas: SubpoenasPanel,
+  ClaimValue: ClaimValuePanel,
+  RecoveryOutlook: RecoveryOutlookPanel,
 };
 
 interface PanelRegistryProps {
