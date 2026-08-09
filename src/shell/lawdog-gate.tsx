@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  completeOAuthRedirect,
   configureAuth,
-  consumeOAuthRedirect,
   getSession,
   isSignedIn,
   onAuthChange,
@@ -39,19 +39,29 @@ export function LawDogGate({ children }: { children: ReactNode }) {
       return;
     }
     configureAuth({ url: lawdog.url, anonKey: lawdog.anonKey });
-    try {
-      const oauthSession = consumeOAuthRedirect();
-      if (oauthSession) {
-        setSession(oauthSession);
-        setReady(true);
-        return onAuthChange(setSession);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "OAuth sign-in failed");
-    }
-    setSession(isSignedIn() ? getSession() : null);
-    setReady(true);
-    return onAuthChange(setSession);
+
+    // PKCE turns the redirect landing into a network round trip (exchange the
+    // one-time code for a session), so this effect resolves asynchronously.
+    let cancelled = false;
+    const unsubscribe = onAuthChange(setSession);
+    completeOAuthRedirect()
+      .then((oauthSession) => {
+        if (cancelled) return;
+        setSession(oauthSession ?? (isSignedIn() ? getSession() : null));
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : "OAuth sign-in failed");
+        setSession(isSignedIn() ? getSession() : null);
+      })
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [active, lawdog]);
 
   if (!active) return <>{children}</>;
