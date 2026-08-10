@@ -1,0 +1,1 @@
+Deploy stamp 2026-08-10: cache-bust rebuild after PKCE merge 284e0888; Vercel git-create 400s, auto-deploy hook is the door.
