@@ -155,11 +155,22 @@ jobs:
             OUT_FILE="${OUT_FILE:-/home/runner/work/_temp/claude-execution-output.json}"
           fi
           echo "exec output file: '${OUT_FILE}'"
-          EXEC_SUBTYPE=$(jq -r '.subtype // empty' "$OUT_FILE" 2>/dev/null || true)
-          EXEC_IS_ERROR=$(jq -r '.is_error // empty' "$OUT_FILE" 2>/dev/null || true)
-          EXEC_COST=$(jq -r '.total_cost_usd // empty' "$OUT_FILE" 2>/dev/null || true)
-          EXEC_TURNS=$(jq -r '.num_turns // empty' "$OUT_FILE" 2>/dev/null || true)
-          EXEC_ERRTEXT=$(jq -r '(.result // .error // "") | tostring' "$OUT_FILE" 2>/dev/null | head -c 800 || true)
+          # The execution file is a JSON ARRAY of message objects, not a single object.
+          # -s/flatten reads all three plausible shapes (object, array, JSONL) and
+          # degrades to empty on a missing / malformed / result-less file, so this block
+          # still can NEVER break the callback (the callback firing is the door).
+          exec_field() {
+            jq -s -r --arg k "$1" \
+              'flatten | map(select(.type=="result")) | last | .[$k] // empty' \
+              "$OUT_FILE" 2>/dev/null || true
+          }
+          EXEC_SUBTYPE=$(exec_field subtype)
+          EXEC_IS_ERROR=$(exec_field is_error)
+          EXEC_COST=$(exec_field total_cost_usd)
+          EXEC_TURNS=$(exec_field num_turns)
+          EXEC_ERRTEXT=$(jq -s -r \
+            'flatten | map(select(.type=="result")) | last | ((.result // .error // "") | tostring)' \
+            "$OUT_FILE" 2>/dev/null | head -c 800 || true)
           echo "exec detail: subtype='${EXEC_SUBTYPE}' is_error='${EXEC_IS_ERROR}' cost='${EXEC_COST}' turns='${EXEC_TURNS}'"
 
           PAYLOAD=$(jq -nc \
