@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { LdClaimGroup, LawDogProvider } from "@/data/lawdog-provider";
 import { LD, LdEmpty, LdJson, LdNote, money } from "./ld-kit";
-import { LdPanelFrame } from "./ld-panel-frame";
+import { LdPanelFrame, type LdExplainCopy } from "./ld-panel-frame";
 import { useLegalData } from "./use-legal-data";
 
 function Figure({ label, value, strong }: { label: string; value: number | null; strong?: boolean }) {
@@ -76,6 +76,14 @@ export function ClaimValueView({ groups }: { groups: LdClaimGroup[] }) {
   );
 }
 
+/** Explain-first copy for this panel (ruling 2026-08-10). Exported so the fixture
+ *  harness renders the same words the app does. */
+export const CLAIM_VALUE_EXPLAIN: LdExplainCopy = {
+  what: "Each claim priced on its own, with the line items that add up to it.",
+  next: "Compare the target against the low and high before you use any figure in a demand.",
+  nextWhenEmpty: "No claim has been priced yet.",
+};
+
 export function ClaimValuePanel() {
   const load = useCallback((provider: LawDogProvider) => provider.listClaimMath(), []);
   // No entity required: ld_claim_math has no case_id to filter on.
@@ -86,6 +94,8 @@ export function ClaimValuePanel() {
       title="Claim value"
       subject="claim value"
       state={state}
+      explain={CLAIM_VALUE_EXPLAIN}
+      countOf={(groups) => groups.length}
       render={(groups) => <ClaimValueView groups={groups} />}
     />
   );

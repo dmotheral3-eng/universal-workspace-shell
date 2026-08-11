@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { LdRate, LawDogProvider } from "@/data/lawdog-provider";
 import { LD, LdEmpty, LdNote, humanize, money } from "./ld-kit";
-import { LdPanelFrame } from "./ld-panel-frame";
+import { LdPanelFrame, type LdExplainCopy } from "./ld-panel-frame";
 import { useLegalData } from "./use-legal-data";
 
 export function RatesView({ rates }: { rates: LdRate[] }) {
@@ -44,6 +44,14 @@ export function RatesView({ rates }: { rates: LdRate[] }) {
   );
 }
 
+/** Explain-first copy for this panel (ruling 2026-08-10). Exported so the fixture
+ *  harness renders the same words the app does. */
+export const RATES_EXPLAIN: LdExplainCopy = {
+  what: "What an hour of each role costs. These rates are what every savings and cost figure elsewhere is built from.",
+  next: "Confirm a rate here before quoting any cost figure to a client.",
+  nextWhenEmpty: "Set the rate card — cost and savings figures elsewhere have nothing to multiply by until you do.",
+};
+
 export function RatesPanel() {
   const load = useCallback((provider: LawDogProvider) => provider.listRateCard(), []);
   // No entity required: the rate card has no case_id and row security scopes it.
@@ -54,6 +62,8 @@ export function RatesPanel() {
       title="Rates"
       subject="rates"
       state={state}
+      explain={RATES_EXPLAIN}
+      countOf={(rows) => rows.length}
       render={(rates) => <RatesView rates={rates} />}
     />
   );

@@ -54,6 +54,7 @@ const documents: Document[] = [
     title: "Care Plan Summary",
     type: "structured",
     category: "Clinical",
+    status: "reviewed",
     createdAt: "2024-11-01",
     sections: [
       { id: "s1", title: "Overview", content: "This document outlines the comprehensive care plan for the current treatment period. All recommendations have been reviewed by the attending physician and discussed with the patient." },
@@ -68,6 +69,7 @@ const documents: Document[] = [
     title: "Informed Consent — Procedure",
     type: "structured",
     category: "Legal",
+    status: "reviewed",
     createdAt: "2024-10-15",
     sections: [
       { id: "s6", title: "Procedure Description", content: "Right knee arthroscopy with possible partial meniscectomy. The procedure involves small incisions around the knee joint through which a camera and instruments are inserted to evaluate and treat the torn meniscus." },
@@ -81,6 +83,7 @@ const documents: Document[] = [
     title: "Lab Results — November 2024",
     type: "structured",
     category: "Results",
+    status: "pending",
     createdAt: "2024-11-10",
     sections: [
       { id: "s10", title: "Complete Blood Count", content: "WBC: 6.8 (4.5–11.0)\nRBC: 4.52 (4.0–5.5)\nHemoglobin: 13.8 (12.0–16.0)\nHematocrit: 41.2 (36–46)\nPlatelets: 245 (150–400)\nMCV: 91 (80–100)\nMCH: 30.5 (27–33)" },
@@ -94,6 +97,7 @@ const documents: Document[] = [
     title: "Imaging Report — CT Chest",
     type: "markdown",
     category: "Results",
+    status: "flagged",
     createdAt: "2024-11-01",
     sections: [
       { id: "s14", title: "Full Report", content: "## CT Chest/Abdomen/Pelvis with Contrast\n\n**Indication:** Restaging non-small cell lung cancer after 3 cycles of chemotherapy.\n\n**Comparison:** CT dated 2024-08-15.\n\n**Technique:** Helical CT from thoracic inlet through pelvis with 100mL Omnipaque 350 IV contrast.\n\n### Findings\n\n**Chest:**\n- Right upper lobe mass measures 2.8 x 2.1 cm (previously 4.0 x 3.2 cm) — 30% reduction by RECIST\n- No new pulmonary nodules\n- Mediastinal lymph nodes: station 4R node 0.8 cm (previously 1.4 cm)\n- No pleural effusion\n- Heart size normal\n\n**Abdomen:**\n- Liver, spleen, pancreas, adrenals: unremarkable\n- No retroperitoneal lymphadenopathy\n- Kidneys: bilateral simple cysts, stable\n\n**Pelvis:**\n- No pelvic lymphadenopathy\n- Bladder and bowel: unremarkable\n\n### Impression\n1. Partial response to therapy — 30% reduction in primary RUL mass\n2. Improvement in mediastinal lymphadenopathy\n3. No evidence of distant metastasis" },
@@ -104,6 +108,7 @@ const documents: Document[] = [
     title: "Patient Education — Diabetes Management",
     type: "markdown",
     category: "Education",
+    status: "reviewed",
     createdAt: "2024-09-20",
     sections: [
       { id: "s15", title: "Content", content: "## Understanding Your Diabetes\n\nType 2 diabetes means your body does not use insulin effectively. Over time, this causes blood sugar to remain elevated, which can damage blood vessels and nerves.\n\n## Daily Management\n\n### Blood Sugar Monitoring\nCheck your blood sugar as directed. Target ranges:\n- Before meals: 80–130 mg/dL\n- 2 hours after meals: below 180 mg/dL\n\n### Medications\nTake all medications as prescribed, even when feeling well. Metformin should be taken with food to reduce stomach upset.\n\n### Diet\n- Focus on vegetables, lean proteins, and whole grains\n- Limit refined carbohydrates and sugary drinks\n- Eat consistent portions at regular times\n- Aim for 25–30g of fiber daily\n\n### Exercise\n- 150 minutes of moderate activity per week\n- Include both aerobic exercise and strength training\n- Check blood sugar before and after exercise\n\n## When to Seek Help\nContact your care team if:\n- Blood sugar consistently above 250 mg/dL\n- Blood sugar below 70 mg/dL with symptoms\n- Illness lasting more than 2 days\n- New numbness or tingling in feet" },
@@ -114,6 +119,7 @@ const documents: Document[] = [
     title: "Referral Letter — Cardiology",
     type: "structured",
     category: "Correspondence",
+    status: "pending",
     createdAt: "2024-10-28",
     sections: [
       { id: "s16", title: "Recipient", content: "Dr. Andrew Patel, MD, FACC\nCardiovascular Associates\n1200 Medical Center Drive, Suite 400" },

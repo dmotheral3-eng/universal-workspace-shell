@@ -31,6 +31,10 @@ export interface Document {
   sections: DocSection[];
   createdAt: string;
   category: string;
+  /** Where this document stands — reviewed, pending, flagged, filed, and so on.
+   *  Optional because the vocabulary is the store's, not the shell's: the evidence
+   *  view colours whatever it is handed and falls back to a neutral chip. */
+  status?: string;
 }
 
 export interface Stage {

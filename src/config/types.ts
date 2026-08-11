@@ -29,6 +29,9 @@ export interface DataConfig {
 
 export type PanelType =
   | "EntityList"
+  // the explain-first landing screen for one entity — orientation, then cards,
+  // then the dense numbers (D-LDUX-2)
+  | "MatterHome"
   | "ItemTable"
   | "ReadingPane"
   | "ChatRail"

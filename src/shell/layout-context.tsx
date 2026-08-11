@@ -9,11 +9,12 @@ function getPanelTitle(panelType: PanelType, instanceNum?: number): string {
   let base: string;
   switch (panelType) {
     case "EntityList": base = vocab.entityPlural; break;
+    case "MatterHome": base = `${vocab.entity} home`; break;
     case "ItemTable": base = vocab.itemPlural; break;
     case "ReadingPane": base = "Reading Pane"; break;
-    case "ChatRail": base = "Assistant"; break;
+    case "ChatRail": base = "Ask"; break;
     case "StageTracker": base = "Stages"; break;
-    case "DocBrowser": base = "Documents"; break;
+    case "DocBrowser": base = "Evidence"; break;
     case "MetricGrid": base = "Metrics"; break;
     case "ClaimValue": base = "Claim value"; break;
     case "RecoveryOutlook": base = "Recovery outlook"; break;
