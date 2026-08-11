@@ -22,6 +22,20 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Newsreader", Georgia, ui-serif, serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  /* Editorial reading layer — see the EDITORIAL TOKENS block below. */
+  --font-editorial: "Fraunces", Georgia, ui-serif, serif;
+  --font-edmono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-ed-paper: var(--ed-paper);
+  --color-ed-card: var(--ed-card);
+  --color-ed-ink: var(--ed-ink);
+  --color-ed-muted: var(--ed-muted);
+  --color-ed-rule: var(--ed-rule);
+  --color-ed-sage: var(--ed-sage);
+  --color-ed-sage-soft: var(--ed-sage-soft);
+  --color-ed-gold: var(--ed-gold);
+  --color-ed-gold-soft: var(--ed-gold-soft);
+  --color-ed-attn: var(--ed-attn);
+  --color-ed-attn-soft: var(--ed-attn-soft);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -160,11 +174,106 @@
   --sidebar-ring: oklch(0.439 0 0);
 }
 
+/*
+  ============================================================
+  EDITORIAL TOKENS — the Centripetal house reading surface
+  ============================================================
+
+  Adopted by D-LDUX-5. These are the tokens live at
+  cre.centripetal-ai.com (public repo dmotheral3-eng/cre-centripetal-site,
+  index.html), lifted verbatim for :root and adapted — not re-picked — for
+  .dark, so a workspace running dark still reads as warm paper rather than
+  as a lit screen.
+
+  They EXTEND the shadcn theme above; they do not replace it. Chrome
+  (tab bars, headers, dialogs) keeps the neutral tokens. Only the reading
+  surfaces — chronology, matter home, matters list, the Ask answers —
+  opt in, via the `bg-ed-*` / `text-ed-*` / `border-ed-*` utilities that
+  the @theme block maps from these variables.
+
+  Light is the default reading surface by ruling.
+  ============================================================
+*/
+:root {
+  --ed-paper: #faf8f2;
+  --ed-card: #fffdf8;
+  --ed-ink: #231f1a;
+  --ed-muted: #6f675d;
+  --ed-rule: #e4ddd0;
+  --ed-sage: #6b8e5a;
+  --ed-sage-soft: #eef3ea;
+  --ed-gold: #b89149;
+  --ed-gold-soft: #f6efdf;
+  --ed-attn: #a8442f;
+  --ed-attn-soft: #f8eae7;
+}
+
+.dark {
+  /* Same hues, inverted lightness. The soft fills stay soft — they are
+     backgrounds for their own foreground, and must not become shouts. */
+  --ed-paper: #17140f;
+  --ed-card: #1e1a15;
+  --ed-ink: #f3ece0;
+  --ed-muted: #a89e90;
+  --ed-rule: #362f26;
+  --ed-sage: #9dbb87;
+  --ed-sage-soft: #232c1e;
+  --ed-gold: #d6ad63;
+  --ed-gold-soft: #2e2718;
+  --ed-attn: #e08b76;
+  --ed-attn-soft: #33201b;
+}
+
 @layer base {
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Fraunces is a variable face; opsz is the axis that matters here — the
+     reading sizes want a text optical size, the display headings a larger
+     one. SOFT 60 is the house setting. */
+  .ed-serif {
+    font-family: var(--font-editorial);
+    font-variation-settings: "opsz" 14, "SOFT" 60;
+    font-weight: 380;
+  }
+  .ed-serif-display {
+    font-family: var(--font-editorial);
+    font-variation-settings: "opsz" 48, "SOFT" 60;
+    font-weight: 560;
+  }
+  .ed-mono {
+    font-family: var(--font-edmono);
+    letter-spacing: 0.05em;
+  }
+  /* The mono eyebrow: dividers, dates, ids, labels. Never below 11px. */
+  .ed-eyebrow {
+    font-family: var(--font-edmono);
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--ed-muted);
+  }
+  /* Gold focus ring, everywhere the editorial surfaces are keyboard-driven. */
+  .ed-focus:focus-visible {
+    outline: 2px solid var(--ed-gold);
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+}
+
+/* Animations are fades in the 150–250ms band and nothing else; a reader who
+   has asked the machine to hold still gets a machine that holds still. */
+@media (prefers-reduced-motion: reduce) {
+  .ed-motion,
+  .ed-motion * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

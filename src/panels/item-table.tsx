@@ -1,83 +1,178 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { bus } from "@/bus";
-import { getDataProvider, type Item } from "@/data";
+import { getDataProvider, type Document, type Item } from "@/data";
 import { getVocabulary } from "@/config";
 import { useLayout } from "@/shell/layout-context";
 import { usePanelScope } from "@/shell/panel-scope";
-import { List, ArrowDown } from "lucide-react";
+import { List, ArrowDownUp, Rows3, GitCommitHorizontal } from "lucide-react";
+import { EdButton, EdEmpty, EdScreen, Eyebrow } from "./editorial-kit";
+import { ChronologyView } from "./chronology/chronology-view";
+import { TimelineView } from "./chronology/timeline-view";
 import {
-  Chip,
-  ExplainScreen,
-  PrimaryAction,
-  humanizeStatus,
-  statusTone,
-} from "./explain";
+  EMPTY_FILTERS,
+  FilterBar,
+  applyFilters,
+  hasAnyFilter,
+  type FactFilters,
+} from "./chronology/filter-bar";
+import { dayLabel, toFacts, type Fact } from "./chronology/fact-model";
+
+/**
+ * CHRONOLOGY — the panel formerly rendered as a three-column sortable table.
+ *
+ * D-LDUX-5. Dave's brief was "make this easy to read… find some interface that
+ * looks at timelines… what is a good law or case interface". The answer, taken
+ * from the litigation chronology tools that do this well, is two views over one
+ * set of facts and one filter bar:
+ *
+ *   · CHRONOLOGY (default) — the reading view. One column, fact cards, sticky
+ *     month eyebrows. You read a case here.
+ *   · TIMELINE — the density view. Time as the horizontal axis, so clusters read
+ *     as clusters and silence reads as silence.
+ *
+ * The panel type is still `ItemTable` and the registry entry is untouched: this
+ * is presentation. Nothing about auth, the data layer or panel registration
+ * moved. See `chronology/fact-model.ts` for the one derived field (fact type)
+ * and where every other field is read from.
+ */
+
+type View = "chronology" | "timeline";
+
+const VIEW_PARAM = "chron";
+
+/** The view is remembered in the URL as well as in state so a shared link opens
+ *  on the view its sender was reading. The shell has one URL for the whole
+ *  workspace rather than one per tab, so with two chronology tabs open this is
+ *  the last-set view; that is a deliberate simplification, not an oversight. */
+function readViewParam(): View {
+  if (typeof window === "undefined") return "chronology";
+  return new URLSearchParams(window.location.search).get(VIEW_PARAM) === "timeline"
+    ? "timeline"
+    : "chronology";
+}
+
+function writeViewParam(view: View) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (view === "chronology") url.searchParams.delete(VIEW_PARAM);
+  else url.searchParams.set(VIEW_PARAM, view);
+  window.history.replaceState(null, "", url.toString());
+}
+
+/**
+ * Provenance arrives as free text — `kind:ref — note` from the cube store, an
+ * `evidence_source` string from the case store. Neither is a foreign key, so
+ * this matches rather than looks up, and falls back to opening the fact itself
+ * when nothing in the evidence answers to the name. A wrong document opened
+ * quietly would be worse than a fact opened honestly.
+ */
+export function resolveSourceDoc(docs: Document[], source: string): Document | null {
+  const raw = source.trim();
+  if (!raw) return null;
+  const ref = raw.split(" — ")[0].split(":").slice(-1)[0].trim() || raw;
+  const needle = ref.toLowerCase();
+  const base = needle.split("/").slice(-1)[0];
+  return (
+    docs.find((d) => d.id === ref) ??
+    docs.find((d) => d.title.toLowerCase() === needle) ??
+    docs.find((d) => d.title.toLowerCase() === base) ??
+    docs.find((d) => base.length >= 4 && d.title.toLowerCase().includes(base)) ??
+    null
+  );
+}
 
 export function ItemTablePanel() {
   const vocab = getVocabulary();
   const { isPanelVisible, openPanel } = useLayout();
   const { tab } = usePanelScope();
+
   const [items, setItems] = useState<Item[]>([]);
+  const [docs, setDocs] = useState<Document[]>([]);
   const [entityName, setEntityName] = useState<string | null>(null);
-  const [currentEntityId, setCurrentEntityId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<"date" | "title" | "status">("date");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+  const [view, setView] = useState<View>(readViewParam);
+  const [oldestFirst, setOldestFirst] = useState(true);
+  const [filters, setFilters] = useState<FactFilters>(EMPTY_FILTERS);
 
   const scopeId = tab.scopeId ?? null;
 
   useEffect(() => {
     return bus.onScoped("entity.selected", scopeId, (event) => {
       setEntityName(event.entityName);
-      setCurrentEntityId(event.entityId);
       setSelectedId(null);
-      getDataProvider().listItems(event.entityId).then(setItems);
+      setAnchorId(null);
+      setFilters(EMPTY_FILTERS);
+      getDataProvider().listItems(event.entityId).then(setItems).catch(() => setItems([]));
+      // Loaded once per matter so a source chip can resolve without a round trip
+      // per click. Failure here costs the click-through, not the screen.
+      getDataProvider().listDocuments().then(setDocs).catch(() => setDocs([]));
     });
   }, [scopeId]);
 
-  const sorted = [...items].sort((a, b) => {
-    const dir = sortDir === "asc" ? 1 : -1;
-    if (sortField === "date") return dir * a.date.localeCompare(b.date);
-    if (sortField === "title") return dir * a.title.localeCompare(b.title);
-    return dir * a.status.localeCompare(b.status);
-  });
+  const ascending = useMemo(() => toFacts(items), [items]);
+  const facts = useMemo(
+    () => (oldestFirst ? ascending : [...ascending].reverse()),
+    [ascending, oldestFirst]
+  );
+  const visible = useMemo(() => applyFilters(facts, filters), [facts, filters]);
 
-  const handleSort = (field: "date" | "title" | "status") => {
-    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortField(field); setSortDir("desc"); }
-  };
+  const setViewAnd = useCallback((next: View) => {
+    setView(next);
+    writeViewParam(next);
+  }, []);
 
-  const handleSelect = (item: Item) => {
-    setSelectedId(item.id);
-    const emitScope = scopeId ?? (currentEntityId ? findScopeForEntity(currentEntityId) : undefined) ?? tab.id;
-    bus.emit("item.selected", { scopeId: emitScope, itemId: item.id, itemTitle: item.title, entityId: item.entityId });
-    bus.emit("chat.context", {
-      scopeId: emitScope,
-      entityId: item.entityId,
-      entityName: entityName,
-      itemId: item.id,
-      itemTitle: item.title,
-    });
-  };
+  const select = useCallback(
+    (fact: Fact) => {
+      setSelectedId(fact.id);
+      const emitScope = scopeId ?? tab.id;
+      bus.emit("item.selected", {
+        scopeId: emitScope,
+        itemId: fact.id,
+        itemTitle: fact.headline,
+        entityId: fact.item.entityId,
+      });
+      bus.emit("chat.context", {
+        scopeId: emitScope,
+        entityId: fact.item.entityId,
+        entityName,
+        itemId: fact.id,
+        itemTitle: fact.headline,
+      });
+    },
+    [entityName, scopeId, tab.id]
+  );
+
+  const openSource = useCallback(
+    (fact: Fact, source: string) => {
+      const doc = resolveSourceDoc(docs, source);
+      const emitScope = scopeId ?? tab.id;
+      if (doc) {
+        bus.emit("doc.open", { scopeId: emitScope, docId: doc.id, docTitle: doc.title });
+        return;
+      }
+      select(fact);
+    },
+    [docs, scopeId, select, tab.id]
+  );
 
   const one = vocab.entity.toLowerCase();
-  const many = vocab.itemPlural.toLowerCase();
 
-  // Explain-first: this block renders above the table in every state (ruling
-  // 2026-08-10). The table is never the first thing a reader meets.
+  // ---- nothing open yet -------------------------------------------------------
   if (!entityName) {
     const entityListOpen = isPanelVisible("EntityList");
     return (
-      <ExplainScreen
-        explain={{
-          title: vocab.itemPlural,
-          what: `Everything that happened in this ${one}, in the order it happened. Each line opens in full when you click it.`,
+      <EdScreen
+        header={{
+          eyebrow: vocab.itemPlural,
+          title: "In the order it happened",
+          what: `Every fact in one ${one}, on one page: what happened, when, who it involves and which document it came from. Read it as a chronology, or look at it on a time axis to see where the record goes quiet.`,
           where: `No ${one} is open, so there is nothing to put in order yet.`,
           next: entityListOpen
             ? `Pick a ${one} from the ${vocab.entityPlural} list.`
-            : `The ${vocab.entityPlural} list is closed \u2014 open it and pick a ${one}.`,
+            : `The ${vocab.entityPlural} list is closed — open it and pick a ${one}.`,
           action: entityListOpen ? undefined : (
-            <PrimaryAction
+            <EdButton
               label={`Open ${vocab.entityPlural}`}
               icon={List}
               onClick={() => openPanel("EntityList")}
@@ -85,82 +180,159 @@ export function ItemTablePanel() {
           ),
         }}
       >
-        <p className="p-4 text-[13px] text-muted-foreground">
-          Nothing to show until a {one} is chosen.
-        </p>
-      </ExplainScreen>
+        <EdEmpty
+          line={`Nothing to show until a ${one} is chosen.`}
+          hint="The chronology follows whatever is open in the workspace."
+        />
+      </EdScreen>
     );
   }
 
-  const newest = sorted.length > 0 ? [...items].sort((a, b) => b.date.localeCompare(a.date))[0] : null;
+  // ---- the reading surface ----------------------------------------------------
+  const shown = visible.size;
+  const dated = ascending.filter((f) => f.when);
+  const first = dated[0];
+  const last = dated[dated.length - 1];
+  const nextDeadline = ascending.find((f) => f.future && f.type === "deadline");
+  const filtered = hasAnyFilter(filters);
+
+  const spanLine =
+    first && last
+      ? `${dayLabel(first.when!)} ${first.when!.getFullYear()} – ${dayLabel(last.when!)} ${last.when!.getFullYear()}`
+      : "no dates recorded";
 
   return (
-    <ExplainScreen
-      explain={{
-        title: vocab.itemPlural,
-        what: `Everything that happened in this ${one}, in the order it happened. Sort by any column; click a line to read it in full.`,
+    <EdScreen
+      header={{
+        eyebrow: vocab.itemPlural,
+        title: entityName,
+        meta: `${ascending.length} ${ascending.length === 1 ? "fact" : "facts"} · ${spanLine}`,
+        what: `Every fact in this ${one}, in the order it happened. Each card states the fact in one line and carries the document it came from — click a source to open it in the reader.`,
         where: (
           <>
-            {items.length} {items.length === 1 ? "entry" : "entries"} recorded for{" "}
-            <span className="font-medium">{entityName}</span>
-            {newest ? `, the most recent on ${newest.date}.` : "."}
+            {filtered ? (
+              <>
+                Showing <span className="tabular-nums">{shown}</span> of{" "}
+                <span className="tabular-nums">{ascending.length}</span> facts; the rest are
+                filtered out, not gone.
+              </>
+            ) : (
+              <>
+                <span className="tabular-nums">{ascending.length}</span>{" "}
+                {ascending.length === 1 ? "fact" : "facts"} recorded, running{" "}
+                {spanLine === "no dates recorded" ? "with no dates on them" : spanLine}.
+              </>
+            )}
           </>
         ),
-        next: selectedId
-          ? "Open another line, or sort by date to see what has been quiet longest."
-          : `Click any line to read it, or start with the most recent ${vocab.item.toLowerCase()}.`,
-        action: newest ? (
-          <PrimaryAction
-            label="Read the most recent entry"
-            icon={ArrowDown}
-            onClick={() => handleSelect(newest)}
-          />
-        ) : undefined,
+        next: nextDeadline
+          ? `${nextDeadline.headline} is dated ahead of today — it is under “Coming up”.`
+          : view === "chronology"
+            ? "Read down the column, or switch to the timeline to see where the record goes quiet."
+            : "Click any mark to jump to that fact in the chronology.",
       }}
-    >
-      <div className="sticky top-0 z-10 grid grid-cols-[1fr_100px_110px] gap-2 border-b border-border bg-background px-4 py-1.5">
-        <button onClick={() => handleSort("title")} className="text-left text-[11px] font-medium text-muted-foreground hover:text-foreground uppercase tracking-wide">
-          {vocab.item} {sortField === "title" && (sortDir === "asc" ? "\u2191" : "\u2193")}
-        </button>
-        <button onClick={() => handleSort("date")} className="text-left text-[11px] font-medium text-muted-foreground hover:text-foreground uppercase tracking-wide">
-          Date {sortField === "date" && (sortDir === "asc" ? "\u2191" : "\u2193")}
-        </button>
-        <button onClick={() => handleSort("status")} className="text-left text-[11px] font-medium text-muted-foreground hover:text-foreground uppercase tracking-wide">
-          Status {sortField === "status" && (sortDir === "asc" ? "\u2191" : "\u2193")}
-        </button>
-      </div>
-      <div className="divide-y divide-border">
-        {sorted.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => handleSelect(item)}
-            className={`
-              w-full grid grid-cols-[1fr_100px_110px] items-center gap-2 px-4 py-2 text-left transition-colors
-              ${selectedId === item.id ? "bg-accent" : "hover:bg-accent/50"}
-            `}
-          >
-            <div className="min-w-0">
-              <p className="truncate text-[13px] font-medium">{item.title}</p>
-              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{item.type}</p>
+      toolbar={
+        <>
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-ed-rule bg-ed-card px-6 py-2">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setOldestFirst((v) => !v)}
+                aria-label={`Sort order: ${oldestFirst ? "oldest first" : "newest first"}. Click to reverse.`}
+                className="ed-focus inline-flex items-center gap-1.5 rounded-full border border-ed-rule bg-ed-paper px-2.5 py-[3px] ed-mono text-[11px] uppercase tracking-[0.05em] text-ed-muted transition-colors duration-150 hover:text-ed-ink"
+              >
+                <ArrowDownUp className="h-3 w-3" />
+                {oldestFirst ? "Oldest first" : "Newest first"}
+              </button>
+              <span className="hidden items-center gap-1.5 sm:inline-flex">
+                <Eyebrow>
+                  {shown} of {ascending.length} shown
+                </Eyebrow>
+              </span>
             </div>
-            <span className="text-xs text-muted-foreground font-mono tabular-nums">{item.date}</span>
-            {item.status ? (
-              <Chip label={humanizeStatus(item.status)} tone={statusTone(item.status)} />
-            ) : (
-              <span />
-            )}
-          </button>
-        ))}
-      </div>
-      {items.length === 0 && (
-        <p className="p-4 text-[13px] text-muted-foreground">
-          No {many} recorded for {entityName} yet.
-        </p>
+
+            <div
+              role="group"
+              aria-label="Chronology view"
+              className="inline-flex items-center gap-1 rounded-full border border-ed-rule bg-ed-paper p-0.5"
+            >
+              <ViewTab
+                label="Chronology"
+                icon={Rows3}
+                active={view === "chronology"}
+                onClick={() => setViewAnd("chronology")}
+              />
+              <ViewTab
+                label="Timeline"
+                icon={GitCommitHorizontal}
+                active={view === "timeline"}
+                onClick={() => setViewAnd("timeline")}
+              />
+            </div>
+          </div>
+          {ascending.length > 0 && (
+            <FilterBar facts={ascending} filters={filters} onChange={setFilters} />
+          )}
+        </>
+      }
+    >
+      {ascending.length === 0 ? (
+        <EdEmpty
+          line={`Nothing is recorded in the chronology for ${entityName} yet.`}
+          hint="An empty record is a normal reading, not a failure — it says only that nobody has entered a fact."
+        />
+      ) : view === "chronology" ? (
+        <ChronologyView
+          facts={facts}
+          visible={visible}
+          selectedId={selectedId}
+          anchorId={anchorId}
+          onSelect={select}
+          onOpenSource={openSource}
+          onFilterWho={(who) => setFilters((f) => ({ ...f, who }))}
+          onFilterIssue={(issue) => setFilters((f) => ({ ...f, issue }))}
+          onFilterType={(type) =>
+            setFilters((f) => ({ ...f, type: f.type === type ? null : type }))
+          }
+        />
+      ) : (
+        <TimelineView
+          facts={facts}
+          visible={visible}
+          selectedId={selectedId}
+          onPick={(fact) => {
+            select(fact);
+            setAnchorId(fact.id);
+            setViewAnd("chronology");
+          }}
+        />
       )}
-    </ExplainScreen>
+    </EdScreen>
   );
 }
 
-function findScopeForEntity(_entityId: string): string | undefined {
-  return undefined;
+function ViewTab({
+  label,
+  icon: Icon,
+  active,
+  onClick,
+}: {
+  label: string;
+  icon: typeof Rows3;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`ed-focus inline-flex items-center gap-1.5 rounded-full px-3 py-1 ed-mono text-[11px] uppercase tracking-[0.05em] transition-colors duration-150 ${
+        active ? "bg-ed-card text-ed-ink shadow-[0_1px_2px_rgba(35,31,26,.08)]" : "text-ed-muted hover:text-ed-ink"
+      }`}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
+  );
 }

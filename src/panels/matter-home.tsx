@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { bus } from "@/bus";
-import { getDataProvider, type Document, type Item, type Metric, type Stage } from "@/data";
+import {
+  getDataProvider,
+  type Document,
+  type Entity,
+  type Item,
+  type Metric,
+  type Stage,
+} from "@/data";
 import { getConfig, getVocabulary, type PanelType } from "@/config";
 import { useLayout } from "@/shell/layout-context";
 import { usePanelScope } from "@/shell/panel-scope";
@@ -18,17 +25,16 @@ import {
   List,
 } from "lucide-react";
 import {
-  CardGrid,
-  Chip,
-  ExplainScreen,
-  PrimaryAction,
-  ProgressStrip,
-  SecondaryAction,
-  SectionCard,
-  statusTone,
-  type Step,
-  type Tone,
-} from "./explain";
+  EdButton,
+  EdEmpty,
+  EdPill,
+  EdScreen,
+  Eyebrow,
+  edTone,
+  humanize,
+  type EdTone,
+} from "./editorial-kit";
+import { statusTone } from "./explain";
 
 /**
  * MATTER HOME — the "where am I / what do I do next" screen.
@@ -37,11 +43,13 @@ import {
  * the screen:
  *
  *   1. the explainer + orientation strip  (what this is, where you are, next)
- *   2. the card grid                      (plain-English sections, counts, chips)
+ *   2. the card grid                      (plain-English sections, counts, pills)
  *   3. the dense panel                    (the numbers, last)
  *
- * Nothing dense may be hoisted above the block. If a future panel wants to be
- * first, the answer is no — it goes in the grid or under it.
+ * D-LDUX-5 re-set it in the editorial face — mono uppercase labels, Fraunces
+ * answers, cause number in mono beside the matter name, parties as pills, and a
+ * card grid with room to breathe instead of the cramped 240px auto-fill. The
+ * order above did not move, and must not.
  */
 
 interface CardSpec {
@@ -49,21 +57,12 @@ interface CardSpec {
   title: string;
   description: string;
   icon: typeof FileText;
-  tone: Tone;
+  tone: EdTone;
   action: string;
   count?: number | string;
   countLabel?: string;
-  chips?: React.ReactNode;
+  pills?: React.ReactNode;
   emphasis?: boolean;
-}
-
-function toSteps(stages: Stage[]): Step[] {
-  return stages.map((s) => ({
-    id: s.id,
-    label: s.name,
-    state: s.state,
-    detail: s.detail,
-  }));
 }
 
 /** The plain-English sentence for "where you are", read off the stages. */
@@ -95,6 +94,25 @@ function nextLine(stages: Stage[], docs: Document[], openish: number): string {
   return "Nothing is waiting on you. Ask a question if you want to test the record.";
 }
 
+/**
+ * The cause number, read off the entity subtitle the provider already builds
+ * (`case_number · court`). No new field and no schema change: if the first
+ * segment does not look like a docket number the whole subtitle is shown as
+ * mono meta instead, which is the honest fallback.
+ */
+function causeNumber(entity: Entity | null): string | null {
+  if (!entity?.subtitle) return null;
+  const head = entity.subtitle.split(" · ")[0]?.trim();
+  if (!head) return null;
+  return /\d/.test(head) ? head : entity.subtitle;
+}
+
+function courtLine(entity: Entity | null): string | null {
+  if (!entity?.subtitle) return null;
+  const parts = entity.subtitle.split(" · ");
+  return parts.length > 1 ? parts.slice(1).join(" · ") : null;
+}
+
 export function MatterHomePanel() {
   const vocab = getVocabulary();
   const registered = getConfig().panels ?? [];
@@ -103,6 +121,7 @@ export function MatterHomePanel() {
 
   const [entityId, setEntityId] = useState<string | null>(null);
   const [entityName, setEntityName] = useState<string | null>(null);
+  const [entity, setEntity] = useState<Entity | null>(null);
   const [stages, setStages] = useState<Stage[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [docs, setDocs] = useState<Document[]>([]);
@@ -113,6 +132,7 @@ export function MatterHomePanel() {
   useEffect(() => {
     setEntityId(null);
     setEntityName(null);
+    setEntity(null);
     setStages([]);
     setItems([]);
     setMetrics([]);
@@ -134,6 +154,13 @@ export function MatterHomePanel() {
     provider.listItems(entityId).then((i) => !cancelled && setItems(i)).catch(() => {});
     provider.getMetrics(entityId).then((m) => !cancelled && setMetrics(m)).catch(() => {});
     provider.listDocuments().then((d) => !cancelled && setDocs(d)).catch(() => {});
+    // The header wants the cause number and the parties. Both are already on the
+    // entity the list panel renders — this reads the same call, it does not add
+    // a field to anything.
+    provider
+      .listEntities()
+      .then((all) => !cancelled && setEntity(all.find((e) => e.id === entityId) ?? null))
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -166,8 +193,9 @@ export function MatterHomePanel() {
   if (!entityName) {
     const listOpen = isPanelVisible("EntityList");
     return (
-      <ExplainScreen
-        explain={{
+      <EdScreen
+        header={{
+          eyebrow: vocab.entity,
           title: `${vocab.entity} home`,
           what: `One page per ${one}: where it stands, what is in it, and what to do next. Everything else in the workspace is a detail of this page.`,
           where: `No ${one} is open yet.`,
@@ -175,7 +203,7 @@ export function MatterHomePanel() {
             ? `Pick a ${one} from the ${vocab.entityPlural} list and this page fills in.`
             : `The ${vocab.entityPlural} list is closed. Open it and pick a ${one}.`,
           action: listOpen ? undefined : (
-            <PrimaryAction
+            <EdButton
               label={`Open ${vocab.entityPlural}`}
               icon={List}
               onClick={() => openPanel("EntityList")}
@@ -183,16 +211,14 @@ export function MatterHomePanel() {
           ),
         }}
       >
-        <div className="p-4">
-          <p className="text-[13px] text-muted-foreground">
-            Nothing to show until a {one} is chosen.
-          </p>
-        </div>
-      </ExplainScreen>
+        <EdEmpty line={`Nothing to show until a ${one} is chosen.`} />
+      </EdScreen>
     );
   }
 
   const unread = docCounts.warn;
+  const cause = causeNumber(entity);
+  const court = courtLine(entity);
 
   // Cards are offered only for panels this profile actually registers, so the
   // healthcare demo does not advertise subpoenas.
@@ -200,9 +226,10 @@ export function MatterHomePanel() {
     {
       panel: "ChatRail",
       title: "Ask about this " + one,
-      description: `Ask a plain question and get an answer with the record it came from. This is the fastest way into anything below.`,
+      description:
+        "Ask a plain question and get an answer with the record it came from. This is the fastest way into anything below.",
       icon: MessageSquare,
-      tone: "info",
+      tone: "ok",
       action: "Ask a question",
       emphasis: true,
     },
@@ -211,34 +238,35 @@ export function MatterHomePanel() {
       title: "Evidence",
       description: "Every document, and whether anyone has actually looked at it yet.",
       icon: FileText,
-      tone: docCounts.risk > 0 ? "risk" : unread > 0 ? "warn" : "good",
+      tone: docCounts.risk > 0 ? "attn" : unread > 0 ? "gold" : "ok",
       action: "Open the evidence",
       count: docs.length,
       countLabel: docs.length === 1 ? "document" : "documents",
-      chips: (
+      pills: (
         <>
-          {docCounts.good > 0 && <Chip label="Reviewed" tone="good" count={docCounts.good} />}
-          {unread > 0 && <Chip label="Pending" tone="warn" count={unread} />}
-          {docCounts.risk > 0 && <Chip label="Flagged" tone="risk" count={docCounts.risk} />}
+          {docCounts.good > 0 && <EdPill label={`Reviewed ${docCounts.good}`} tone="ok" />}
+          {unread > 0 && <EdPill label={`Pending ${unread}`} tone="gold" />}
+          {docCounts.risk > 0 && <EdPill label={`Flagged ${docCounts.risk}`} tone="attn" />}
         </>
       ),
     },
     {
       panel: "ItemTable",
       title: vocab.itemPlural,
-      description: `What happened and when, in order. Click any line to read it in full.`,
+      description:
+        "What happened and when, in order — with the source behind each fact and the stretches where the record goes quiet.",
       icon: Clock,
       tone: "neutral",
       action: `Open the ${vocab.itemPlural.toLowerCase()}`,
       count: items.length,
-      countLabel: items.length === 1 ? "entry" : "entries",
+      countLabel: items.length === 1 ? "fact" : "facts",
     },
     {
       panel: "StageTracker",
       title: "Where things stand",
       description: "The stages this matter moves through, and which one it is sitting in.",
       icon: ListChecks,
-      tone: stages.some((s) => s.state === "blocked") ? "risk" : "neutral",
+      tone: stages.some((s) => s.state === "blocked") ? "attn" : "neutral",
       action: "Open the stages",
       count: stages.length,
       countLabel: stages.length === 1 ? "stage" : "stages",
@@ -264,7 +292,7 @@ export function MatterHomePanel() {
       title: "What this could be worth",
       description: "The current recovery range and the arithmetic behind it.",
       icon: Banknote,
-      tone: "good",
+      tone: "ok",
       action: "Open the outlook",
     },
     {
@@ -280,32 +308,44 @@ export function MatterHomePanel() {
       title: "What has not been examined",
       description: "A screen, not a verdict: which documents nothing in the record points at.",
       icon: Table,
-      tone: "warn",
+      tone: "gold",
       action: "Open the coverage screen",
     },
   ];
 
-  const cards = allCards.filter(
-    (c) => registered.length === 0 || registered.includes(c.panel)
-  );
+  const cards = allCards.filter((c) => registered.length === 0 || registered.includes(c.panel));
 
   return (
-    <ExplainScreen
-      explain={{
+    <EdScreen
+      header={{
+        eyebrow: vocab.entity,
         title: entityName,
+        meta: cause ?? undefined,
+        pills: (
+          <>
+            {entity?.status && (
+              <EdPill label={humanize(entity.status)} tone={edTone(entity.status)} />
+            )}
+            {entity?.tags.map((t) => (
+              <EdPill key={t} label={t} tone="neutral" title="Party or attorney on this matter" />
+            ))}
+            {court && <span className="ed-mono text-[11px] text-ed-muted">{court}</span>}
+          </>
+        ),
         what: `Everything about this ${one} in one place. Each card below opens the detail behind it; nothing here needs you to know where it is stored.`,
         where: whereLine(stages),
         next: nextLine(stages, docs, unread),
-        orientation: <ProgressStrip steps={toSteps(stages)} />,
+        extra: <StageStrip stages={stages} />,
         action: (
           <>
-            <PrimaryAction
+            <EdButton
               label={`Ask about this ${one}`}
               icon={MessageSquare}
               onClick={go("ChatRail")}
             />
             {(docCounts.risk > 0 || unread > 0) && (
-              <SecondaryAction
+              <EdButton
+                variant="quiet"
                 label={docCounts.risk > 0 ? "See the flagged evidence" : "Review pending evidence"}
                 icon={FileText}
                 onClick={go("DocBrowser")}
@@ -316,45 +356,31 @@ export function MatterHomePanel() {
       }}
     >
       {/* 2 — the card grid */}
-      <CardGrid>
+      <div className="grid gap-4 px-6 py-6 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
         {cards.map((c) => (
-          <SectionCard
-            key={c.panel}
-            title={c.title}
-            description={c.description}
-            icon={c.icon}
-            tone={c.tone}
-            count={c.count}
-            countLabel={c.countLabel}
-            chips={c.chips}
-            actionLabel={c.action}
-            emphasis={c.emphasis}
-            onOpen={go(c.panel)}
-          />
+          <SectionCard key={c.panel} spec={c} onOpen={go(c.panel)} />
         ))}
-      </CardGrid>
+      </div>
 
       {/* 3 — the dense panel, last */}
       {metrics.length > 0 && (
-        <section className="border-t border-border px-4 py-3">
+        <section className="border-t border-ed-rule px-6 py-5">
           <div className="flex items-baseline justify-between gap-3">
-            <h3 className="text-[13px] font-medium text-foreground">The numbers</h3>
-            <span className="text-[11px] text-muted-foreground">
+            <Eyebrow tick>The numbers</Eyebrow>
+            <span className="ed-serif text-[13px] text-ed-muted">
               Counted from the record, not estimated
             </span>
           </div>
-          <div className="mt-2.5 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
+          <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(170px,1fr))]">
             {metrics.map((m) => (
-              <div key={m.id} className="rounded-md border border-border bg-card px-3 py-2">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {m.label}
-                </p>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <span className="font-mono text-[18px] font-semibold tabular-nums">
+              <div key={m.id} className="rounded-[10px] border border-ed-rule bg-ed-card px-3.5 py-3">
+                <Eyebrow>{m.label}</Eyebrow>
+                <div className="mt-1.5 flex items-baseline gap-2">
+                  <span className="ed-mono text-[20px] leading-none text-ed-ink tabular-nums">
                     {m.value}
                   </span>
                   {m.delta && (
-                    <span className="font-mono text-[11px] text-muted-foreground">{m.delta}</span>
+                    <span className="ed-mono text-[11px] text-ed-muted">{m.delta}</span>
                   )}
                 </div>
               </div>
@@ -364,13 +390,114 @@ export function MatterHomePanel() {
             <button
               type="button"
               onClick={go("MetricGrid")}
-              className="mt-2.5 inline-flex items-center gap-1 text-[12px] font-medium text-muted-foreground hover:text-foreground"
+              className="ed-focus ed-serif mt-3 inline-flex items-center gap-1 text-[14px] text-ed-sage transition-colors duration-150 hover:text-ed-ink"
             >
               Open the full metrics panel <ArrowRight className="h-3.5 w-3.5" />
             </button>
           )}
         </section>
       )}
-    </ExplainScreen>
+    </EdScreen>
+  );
+}
+
+/** "Where am I" at a glance: a sage bar and one pill per stage. Zero stages is a
+ *  sentence, not an empty rail — a matter with no recorded phases reads normally. */
+function StageStrip({ stages }: { stages: Stage[] }) {
+  if (stages.length === 0) {
+    return (
+      <p className="ed-serif text-[14px] text-ed-muted">
+        No stages recorded for this matter yet.
+      </p>
+    );
+  }
+  const done = stages.filter((s) => s.state === "done").length;
+  const currentIndex = stages.findIndex((s) => s.state === "current");
+  const position = currentIndex >= 0 ? currentIndex + 1 : done || 1;
+  const pct = Math.round((done / stages.length) * 100);
+
+  const tone: Record<Stage["state"], EdTone> = {
+    done: "ok",
+    current: "gold",
+    pending: "neutral",
+    blocked: "attn",
+  };
+
+  return (
+    <div className="max-w-[72ch]">
+      <div className="flex items-baseline justify-between gap-3">
+        <Eyebrow>
+          Step {position} of {stages.length}
+        </Eyebrow>
+        <span className="ed-mono text-[11px] text-ed-muted tabular-nums">{pct}% complete</span>
+      </div>
+      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-ed-rule/60">
+        <div
+          className="h-full rounded-full bg-ed-sage transition-[width] duration-200"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {stages.map((s) => (
+          <EdPill key={s.id} label={humanize(s.name)} tone={tone[s.state]} title={s.detail} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** A card, not a table row: a Fraunces title, one line saying what it is for, a
+ *  mono count, status pills, and one obvious way in. */
+function SectionCard({ spec, onOpen }: { spec: CardSpec; onOpen: () => void }) {
+  const Icon = spec.icon;
+  const accent =
+    spec.tone === "attn"
+      ? "text-ed-attn"
+      : spec.tone === "gold"
+        ? "text-ed-gold"
+        : spec.tone === "ok"
+          ? "text-ed-sage"
+          : "text-ed-muted";
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className={`ed-focus group flex flex-col rounded-[12px] border bg-ed-card p-5 text-left transition-[box-shadow,border-color] duration-200 hover:shadow-[0_1px_2px_rgba(35,31,26,.04),0_12px_32px_rgba(35,31,26,.06)] ${
+        spec.emphasis ? "border-ed-sage/60 ring-1 ring-ed-sage/25" : "border-ed-rule hover:border-ed-gold/50"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <span className={`mt-[3px] shrink-0 ${accent}`}>
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h3
+            className="ed-serif text-[18px] leading-[1.25] text-ed-ink"
+            style={{ fontWeight: 560 }}
+          >
+            {spec.title}
+          </h3>
+          <p className="ed-serif mt-1.5 text-[14px] leading-[1.6] text-ed-muted">
+            {spec.description}
+          </p>
+        </div>
+      </div>
+
+      {(spec.count !== undefined || spec.pills) && (
+        <div className="mt-3.5 flex flex-wrap items-baseline gap-x-2 gap-y-1.5">
+          {spec.count !== undefined && (
+            <span className="ed-mono text-[22px] leading-none text-ed-ink tabular-nums">
+              {spec.count}
+            </span>
+          )}
+          {spec.countLabel && <Eyebrow>{spec.countLabel}</Eyebrow>}
+          {spec.pills}
+        </div>
+      )}
+
+      <span className="ed-serif mt-4 inline-flex items-center gap-1 text-[14px] text-ed-sage">
+        {spec.action} →
+      </span>
+    </button>
   );
 }

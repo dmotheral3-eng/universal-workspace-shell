@@ -9,8 +9,8 @@
   "vocabulary": {
     "entity": "Matter",
     "entityPlural": "Matters",
-    "item": "Timeline Event",
-    "itemPlural": "Timeline"
+    "item": "Fact",
+    "itemPlural": "Chronology"
   },
   "panels": ["EntityList", "MatterHome", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix", "Parties", "Rates", "Savings", "Subpoenas", "ClaimValue", "RecoveryOutlook"],
   "defaultLayout": "Classic",
