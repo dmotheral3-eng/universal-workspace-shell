@@ -53,8 +53,13 @@ interface CardSpec {
   action: string;
   count?: number | string;
   countLabel?: string;
+  /** Where the count figure goes, when that is somewhere narrower than the card. */
+  onCount?: () => void;
+  countHint?: string;
   chips?: React.ReactNode;
   emphasis?: boolean;
+  /** Runs on the tick after the target panel is on screen. */
+  then?: () => void;
 }
 
 function toSteps(stages: Stage[]): Step[] {
@@ -99,7 +104,7 @@ export function MatterHomePanel() {
   const vocab = getVocabulary();
   const registered = getConfig().panels ?? [];
   const { tab } = usePanelScope();
-  const { openPanel, isPanelVisible } = useLayout();
+  const { focusPanel, isPanelVisible } = useLayout();
 
   const [entityId, setEntityId] = useState<string | null>(null);
   const [entityName, setEntityName] = useState<string | null>(null);
@@ -153,15 +158,43 @@ export function MatterHomePanel() {
   }, [docs]);
 
   const one = vocab.entity.toLowerCase();
+  const emitScope = scopeId ?? tab.id;
 
-  const go = (panel: PanelType) => () => {
-    if (!isPanelVisible(panel)) openPanel(panel);
-    // Re-announcing the selection makes the panel that just opened catch up; it
-    // was not mounted when the original entity.selected went out.
+  /** Re-announce the selection so a panel that was not listening catches up. */
+  const announce = () => {
     if (entityId && entityName) {
-      bus.emit("entity.selected", { scopeId: scopeId ?? tab.id, entityId, entityName });
+      bus.emit("entity.selected", { scopeId: emitScope, entityId, entityName });
     }
   };
+
+  /**
+   * Every card, count, chip and button on this screen goes through here: raise
+   * the panel (the shell's one navigation mechanism), then tell it what it is
+   * looking at.
+   *
+   * The timeout is not decoration. A panel MOUNTED by this click subscribes to
+   * the bus in an effect that runs after the click handler returns, so the
+   * announce above goes out to an audience that does not include it yet, and the
+   * freshly-opened panel sits on "nothing selected" forever. Replaying on the
+   * next macrotask — after React has committed and effects have run — is what
+   * makes a newly opened panel arrive with its data.
+   */
+  const go = (panel: PanelType, then?: () => void) => () => {
+    const mounted = focusPanel(panel);
+    announce();
+    if (!mounted && !then) return;
+    window.setTimeout(() => {
+      if (mounted) announce();
+      then?.();
+    }, 0);
+  };
+
+  /** Open the evidence already narrowed to one status bucket. */
+  const goEvidence = (filter: "all" | "good" | "warn" | "risk") =>
+    go("DocBrowser", () => bus.emit("evidence.filter", { scopeId: emitScope, filter }));
+
+  /** Open the Ask rail AND put the cursor in it — half of that is not the ask. */
+  const goAsk = () => go("ChatRail", () => bus.emit("ask.focus", { scopeId: emitScope }))();
 
   if (!entityName) {
     const listOpen = isPanelVisible("EntityList");
@@ -178,7 +211,7 @@ export function MatterHomePanel() {
             <PrimaryAction
               label={`Open ${vocab.entityPlural}`}
               icon={List}
-              onClick={() => openPanel("EntityList")}
+              onClick={() => focusPanel("EntityList")}
             />
           ),
         }}
@@ -205,6 +238,7 @@ export function MatterHomePanel() {
       tone: "info",
       action: "Ask a question",
       emphasis: true,
+      then: () => bus.emit("ask.focus", { scopeId: emitScope }),
     },
     {
       panel: "DocBrowser",
@@ -215,11 +249,37 @@ export function MatterHomePanel() {
       action: "Open the evidence",
       count: docs.length,
       countLabel: docs.length === 1 ? "document" : "documents",
+      onCount: goEvidence("all"),
+      countHint: "Open the evidence, unfiltered",
       chips: (
         <>
-          {docCounts.good > 0 && <Chip label="Reviewed" tone="good" count={docCounts.good} />}
-          {unread > 0 && <Chip label="Pending" tone="warn" count={unread} />}
-          {docCounts.risk > 0 && <Chip label="Flagged" tone="risk" count={docCounts.risk} />}
+          {docCounts.good > 0 && (
+            <Chip
+              label="Reviewed"
+              tone="good"
+              count={docCounts.good}
+              onClick={goEvidence("good")}
+              title="Open the evidence, showing only reviewed documents"
+            />
+          )}
+          {unread > 0 && (
+            <Chip
+              label="Pending"
+              tone="warn"
+              count={unread}
+              onClick={goEvidence("warn")}
+              title="Open the evidence, showing only documents nobody has read"
+            />
+          )}
+          {docCounts.risk > 0 && (
+            <Chip
+              label="Flagged"
+              tone="risk"
+              count={docCounts.risk}
+              onClick={goEvidence("risk")}
+              title="Open the evidence, showing only flagged documents"
+            />
+          )}
         </>
       ),
     },
@@ -232,6 +292,8 @@ export function MatterHomePanel() {
       action: `Open the ${vocab.itemPlural.toLowerCase()}`,
       count: items.length,
       countLabel: items.length === 1 ? "entry" : "entries",
+      onCount: go("ItemTable"),
+      countHint: `Open the ${vocab.itemPlural.toLowerCase()}`,
     },
     {
       panel: "StageTracker",
@@ -242,6 +304,8 @@ export function MatterHomePanel() {
       action: "Open the stages",
       count: stages.length,
       countLabel: stages.length === 1 ? "stage" : "stages",
+      onCount: go("StageTracker"),
+      countHint: "Open the stages",
     },
     {
       panel: "Parties",
@@ -302,13 +366,13 @@ export function MatterHomePanel() {
             <PrimaryAction
               label={`Ask about this ${one}`}
               icon={MessageSquare}
-              onClick={go("ChatRail")}
+              onClick={goAsk}
             />
             {(docCounts.risk > 0 || unread > 0) && (
               <SecondaryAction
                 label={docCounts.risk > 0 ? "See the flagged evidence" : "Review pending evidence"}
                 icon={FileText}
-                onClick={go("DocBrowser")}
+                onClick={goEvidence(docCounts.risk > 0 ? "risk" : "warn")}
               />
             )}
           </>
@@ -326,10 +390,12 @@ export function MatterHomePanel() {
             tone={c.tone}
             count={c.count}
             countLabel={c.countLabel}
+            onCount={c.onCount}
+            countHint={c.countHint}
             chips={c.chips}
             actionLabel={c.action}
             emphasis={c.emphasis}
-            onOpen={go(c.panel)}
+            onOpen={go(c.panel, c.then)}
           />
         ))}
       </CardGrid>
@@ -345,7 +411,16 @@ export function MatterHomePanel() {
           </div>
           <div className="mt-2.5 grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
             {metrics.map((m) => (
-              <div key={m.id} className="rounded-md border border-border bg-card px-3 py-2">
+              // A number on this screen is a way into the panel that owns it,
+              // not a printed figure (D-LDNAV-1).
+              <button
+                key={m.id}
+                type="button"
+                onClick={go("MetricGrid")}
+                title="Open the full metrics panel"
+                aria-label={`${m.label}: ${m.value} — open the full metrics panel`}
+                className="cursor-pointer rounded-md border border-border bg-card px-3 py-2 text-left transition-colors hover:border-foreground/20 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   {m.label}
                 </p>
@@ -357,18 +432,17 @@ export function MatterHomePanel() {
                     <span className="font-mono text-[11px] text-muted-foreground">{m.delta}</span>
                   )}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
-          {isPanelVisible("MetricGrid") ? null : (
-            <button
-              type="button"
-              onClick={go("MetricGrid")}
-              className="mt-2.5 inline-flex items-center gap-1 text-[12px] font-medium text-muted-foreground hover:text-foreground"
-            >
-              Open the full metrics panel <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={go("MetricGrid")}
+            aria-label="Open the full metrics panel"
+            className="mt-2.5 inline-flex cursor-pointer items-center gap-1 rounded-sm text-[12px] font-medium text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Open the full metrics panel <ArrowRight className="h-3.5 w-3.5" />
+          </button>
         </section>
       )}
     </ExplainScreen>

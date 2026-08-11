@@ -78,14 +78,24 @@ export function EvidenceView({
   entityName,
   onOpen,
   selectedId,
+  filter: filterProp,
+  onFilterChange,
 }: {
   documents: Document[];
   entityName: string | null;
   onOpen: (doc: Document) => void;
   selectedId: string | null;
+  /** Controlled when supplied, so another screen can arrive already narrowed. */
+  filter?: Filter;
+  onFilterChange?: (filter: Filter) => void;
 }) {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [ownFilter, setOwnFilter] = useState<Filter>("all");
+  const filter = filterProp ?? ownFilter;
+  const setFilter = (next: Filter) => {
+    setOwnFilter(next);
+    onFilterChange?.(next);
+  };
 
   const counts = useMemo(() => {
     const c = { good: 0, warn: 0, risk: 0 };
@@ -204,6 +214,7 @@ export function DocBrowserPanel() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [entityName, setEntityName] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
 
   const scopeId = tab.scopeId ?? null;
 
@@ -218,6 +229,12 @@ export function DocBrowserPanel() {
 
   useEffect(() => {
     return bus.onScoped("entity.selected", scopeId, (e) => setEntityName(e.entityName));
+  }, [scopeId]);
+
+  // A count clicked on another screen ("Pending 77") arrives here as the filter
+  // it was counting, so the reader lands on the documents they pointed at.
+  useEffect(() => {
+    return bus.onScoped("evidence.filter", scopeId, (e) => setFilter(e.filter));
   }, [scopeId]);
 
   const handleOpen = (doc: Document) => {
@@ -281,6 +298,8 @@ export function DocBrowserPanel() {
         entityName={entityName}
         onOpen={handleOpen}
         selectedId={selectedId}
+        filter={filter}
+        onFilterChange={setFilter}
       />
     </ExplainScreen>
   );

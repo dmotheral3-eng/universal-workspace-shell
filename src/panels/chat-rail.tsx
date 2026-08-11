@@ -54,6 +54,7 @@ export function ChatRailPanel() {
   const [context, setContext] = useState<ChatContextEvent | null>(null);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const scopeId = tab.scopeId ?? null;
   const entityLists = getTabsByType("EntityList");
@@ -67,6 +68,14 @@ export function ChatRailPanel() {
 
   useEffect(() => {
     return bus.onScoped("chat.context", scopeId, setContext);
+  }, [scopeId]);
+
+  // "Ask a question →" elsewhere in the workspace means: be here, ready to type.
+  useEffect(() => {
+    return bus.onScoped("ask.focus", scopeId, () => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    });
   }, [scopeId]);
 
   useEffect(() => {
@@ -230,6 +239,7 @@ export function ChatRailPanel() {
           className="flex items-center gap-2"
         >
           <Input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask a question..."

@@ -165,6 +165,52 @@ function splitNode(
   return root;
 }
 
+// ---- panel navigation ---------------------------------------------------------
+
+/** Where a panel type currently lives in the tree, if it lives anywhere. */
+export function findTabOfType(
+  node: LayoutNode,
+  panelType: PanelType
+): { leafId: string; tabIndex: number } | null {
+  if (node.type === "leaf") {
+    const tabIndex = node.tabs.findIndex((t) => t.panelType === panelType);
+    return tabIndex >= 0 ? { leafId: node.id, tabIndex } : null;
+  }
+  for (const child of node.children) {
+    const found = findTabOfType(child, panelType);
+    if (found) return found;
+  }
+  return null;
+}
+
+export function setActiveTabIndex(root: LayoutNode, leafId: string, tabIndex: number): LayoutNode {
+  if (root.type === "leaf") {
+    return root.id === leafId ? { ...root, activeTabIndex: tabIndex } : root;
+  }
+  return { ...root, children: root.children.map((c) => setActiveTabIndex(c, leafId, tabIndex)) };
+}
+
+/**
+ * What "take me to that panel" has to do, given where the panel is now.
+ *
+ * Pure on purpose: this is the decision D-LDNAV-1 got wrong. The old code asked
+ * "is this panel present anywhere?" and stopped if the answer was yes — so every
+ * card pointing at a BACKGROUND TAB was a link that did nothing. Being a tab is
+ * not being on screen, and the difference is this function.
+ */
+export type PanelTarget =
+  | { kind: "raise"; leafId: string; tabIndex: number }
+  | { kind: "restore"; tab: PanelTab }
+  | { kind: "mount" };
+
+export function resolvePanelTarget(layout: WorkspaceLayout, panelType: PanelType): PanelTarget {
+  const found = findTabOfType(layout.root, panelType);
+  if (found) return { kind: "raise", ...found };
+  const collapsed = layout.collapsedPanels.find((t) => t.panelType === panelType);
+  if (collapsed) return { kind: "restore", tab: collapsed };
+  return { kind: "mount" };
+}
+
 export function serializeLayout(layout: WorkspaceLayout): string {
   return JSON.stringify(layout, null, 2);
 }
