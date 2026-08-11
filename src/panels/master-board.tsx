@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,6 +8,7 @@ import {
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight, Filter } from "lucide-react";
 import { getMasterTodoSource } from "@/data";
+import { ExplainScreen } from "./explain";
 import type { MasterTodoRow } from "@/data/master-todo-types";
 
 const LANE_ORDER = [
@@ -226,25 +226,31 @@ export function MasterBoardPanel() {
   const totalHeld = rows.filter((r) => r.bucket === "held").length;
 
   return (
-    <div className="flex h-full flex-col">
+    <ExplainScreen
+      explain={{
+        title: "Master board",
+        what: "Everything still open across every line of work, in one list — not just this matter, and not just legal.",
+        where: (
+          <>
+            <span className="font-mono">{totalActive}</span>{" "}
+            {totalActive === 1 ? "item is" : "items are"} moving
+            {totalHeld > 0 ? (
+              <>
+                {" and "}
+                <span className="font-mono">{totalHeld}</span>{" "}
+                {totalHeld === 1 ? "is" : "are"} held up
+              </>
+            ) : null}
+            .
+          </>
+        ),
+        next:
+          totalHeld > 0
+            ? "Start with what is held — held means something is waiting on a decision, not on work."
+            : "Nothing is held. Work the lanes below in whatever order suits the day.",
+      }}
+    >
       <div className="shrink-0 border-b border-border px-3 py-2.5 space-y-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              Master Board — everything open, everywhere
-            </h2>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              <span className="font-mono">{totalActive}</span> active
-              {totalHeld > 0 && (
-                <>
-                  {" · "}
-                  <span className="font-mono text-red-500">{totalHeld}</span>{" "}
-                  held
-                </>
-              )}
-            </p>
-          </div>
-        </div>
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <Filter className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
@@ -268,7 +274,7 @@ export function MasterBoardPanel() {
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <div>
         <div className="p-3 space-y-2">
           {laneGroups.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-8">
@@ -284,7 +290,7 @@ export function MasterBoardPanel() {
             />
           ))}
         </div>
-      </ScrollArea>
+      </div>
 
       <div className="shrink-0 border-t border-border px-3 py-1.5">
         <p className="text-[9px] font-mono text-muted-foreground/60 text-center tracking-wider">
@@ -292,6 +298,6 @@ export function MasterBoardPanel() {
           THEIR FEEDS ARE WIRED · v_motherdesk_master_todo
         </p>
       </div>
-    </div>
+    </ExplainScreen>
   );
 }

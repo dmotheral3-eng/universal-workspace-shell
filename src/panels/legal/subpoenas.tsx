@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { LdSubpoena, LawDogProvider } from "@/data/lawdog-provider";
 import { LD, LdEmpty, LdEnumPill, dateOnly, humanize, moneyRange } from "./ld-kit";
-import { LdPanelFrame } from "./ld-panel-frame";
+import { LdPanelFrame, type LdExplainCopy } from "./ld-panel-frame";
 import { useLegalData } from "./use-legal-data";
 
 function Block({ label, text }: { label: string; text: string }) {
@@ -85,6 +85,14 @@ export function SubpoenasView({ rows }: { rows: LdSubpoena[] }) {
   );
 }
 
+/** Explain-first copy for this panel (ruling 2026-08-10). Exported so the fixture
+ *  harness renders the same words the app does. */
+export const SUBPOENAS_EXPLAIN: LdExplainCopy = {
+  what: "Records we have demanded from outside parties: what each demand gets, what it would prove, and whether it came back.",
+  next: "Chase anything served that has no response date, and look at anything objected to or quashed.",
+  nextWhenEmpty: "Nothing has been demanded from an outside party yet.",
+};
+
 export function SubpoenasPanel() {
   const load = useCallback(
     (provider: LawDogProvider, entityId: string | null) => provider.listSubpoenas(entityId ?? ""),
@@ -98,6 +106,8 @@ export function SubpoenasPanel() {
       subject="subpoenas"
       meta={entityName}
       state={state}
+      explain={SUBPOENAS_EXPLAIN}
+      countOf={(rows) => rows.length}
       render={(rows) => <SubpoenasView rows={rows} />}
     />
   );

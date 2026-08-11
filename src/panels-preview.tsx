@@ -22,12 +22,12 @@ import {
 } from "./data/lawdog-fixtures";
 import { LdPanelFrame } from "./panels/legal/ld-panel-frame";
 import type { LegalDataState } from "./panels/legal/use-legal-data";
-import { PartiesView } from "./panels/legal/parties";
-import { RatesView } from "./panels/legal/rates";
-import { SavingsView, SavingsFooter } from "./panels/legal/savings";
-import { SubpoenasView } from "./panels/legal/subpoenas";
-import { ClaimValueView } from "./panels/legal/claim-value";
-import { RecoveryOutlookView } from "./panels/legal/recovery-outlook";
+import { PartiesView, PARTIES_EXPLAIN } from "./panels/legal/parties";
+import { RatesView, RATES_EXPLAIN } from "./panels/legal/rates";
+import { SavingsView, SavingsFooter, SAVINGS_EXPLAIN } from "./panels/legal/savings";
+import { SubpoenasView, SUBPOENAS_EXPLAIN } from "./panels/legal/subpoenas";
+import { ClaimValueView, CLAIM_VALUE_EXPLAIN } from "./panels/legal/claim-value";
+import { RecoveryOutlookView, RECOVERY_OUTLOOK_EXPLAIN } from "./panels/legal/recovery-outlook";
 
 /**
  * Fixture harness for the six legal panels — open /panels.html with `npm run dev`
@@ -60,7 +60,7 @@ function Cell({ caption, children }: { caption: string; children: ReactNode }) {
       <figcaption className="text-[11px] font-medium tracking-wide text-neutral-500 uppercase">
         {caption}
       </figcaption>
-      <div className="h-[380px] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+      <div className="h-[460px] overflow-hidden rounded-md border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
         {children}
       </div>
     </figure>
@@ -110,6 +110,7 @@ function Preview() {
               subject="parties"
               meta="Reyes v. Northgate"
               state={ready(parties)}
+              explain={PARTIES_EXPLAIN}
               render={(rows) => <PartiesView parties={rows} />}
             />
           }
@@ -118,6 +119,7 @@ function Preview() {
               title="Parties"
               subject="parties"
               state={ready([])}
+              explain={PARTIES_EXPLAIN}
               render={(rows) => <PartiesView parties={rows} />}
             />
           }
@@ -130,6 +132,7 @@ function Preview() {
               title="Rates"
               subject="rates"
               state={ready(rates)}
+              explain={RATES_EXPLAIN}
               render={(rows) => <RatesView rates={rows} />}
             />
           }
@@ -138,6 +141,7 @@ function Preview() {
               title="Rates"
               subject="rates"
               state={ready([])}
+              explain={RATES_EXPLAIN}
               render={(rows) => <RatesView rates={rows} />}
             />
           }
@@ -151,6 +155,7 @@ function Preview() {
               subject="savings"
               meta="Reyes v. Northgate"
               state={ready(savings)}
+              explain={SAVINGS_EXPLAIN}
               render={(rows) => <SavingsView rows={rows} />}
               footer={(rows) => (rows.length > 0 ? <SavingsFooter rows={rows} /> : null)}
             />
@@ -160,6 +165,7 @@ function Preview() {
               title="Savings"
               subject="savings"
               state={ready([])}
+              explain={SAVINGS_EXPLAIN}
               render={(rows) => <SavingsView rows={rows} />}
               footer={(rows) => (rows.length > 0 ? <SavingsFooter rows={rows} /> : null)}
             />
@@ -174,6 +180,7 @@ function Preview() {
               subject="subpoenas"
               meta="Reyes v. Northgate"
               state={ready(subpoenas)}
+              explain={SUBPOENAS_EXPLAIN}
               render={(rows) => <SubpoenasView rows={rows} />}
             />
           }
@@ -182,6 +189,7 @@ function Preview() {
               title="Subpoenas"
               subject="subpoenas"
               state={ready([])}
+              explain={SUBPOENAS_EXPLAIN}
               render={(rows) => <SubpoenasView rows={rows} />}
             />
           }
@@ -194,6 +202,7 @@ function Preview() {
               title="Claim value"
               subject="claim value"
               state={ready(claims)}
+              explain={CLAIM_VALUE_EXPLAIN}
               render={(groups) => <ClaimValueView groups={groups} />}
             />
           }
@@ -202,6 +211,7 @@ function Preview() {
               title="Claim value"
               subject="claim value"
               state={ready([])}
+              explain={CLAIM_VALUE_EXPLAIN}
               render={(groups) => <ClaimValueView groups={groups} />}
             />
           }
@@ -215,6 +225,7 @@ function Preview() {
               subject="the recovery outlook"
               meta="Reyes v. Northgate"
               state={ready(recovery)}
+              explain={RECOVERY_OUTLOOK_EXPLAIN}
               render={(rows) => <RecoveryOutlookView rows={rows} />}
             />
           }
@@ -223,6 +234,7 @@ function Preview() {
               title="Recovery outlook"
               subject="the recovery outlook"
               state={ready([])}
+              explain={RECOVERY_OUTLOOK_EXPLAIN}
               render={(rows) => <RecoveryOutlookView rows={rows} />}
             />
           }
@@ -237,6 +249,7 @@ function Preview() {
                 title="Subpoenas"
                 subject="subpoenas"
                 state={{ kind: "awaiting-entity" }}
+                explain={SUBPOENAS_EXPLAIN}
                 render={() => null}
               />
             </Cell>
@@ -245,6 +258,7 @@ function Preview() {
                 title="Subpoenas"
                 subject="subpoenas"
                 state={{ kind: "unavailable" }}
+                explain={SUBPOENAS_EXPLAIN}
                 render={() => null}
               />
             </Cell>
@@ -253,6 +267,7 @@ function Preview() {
                 title="Subpoenas"
                 subject="subpoenas"
                 state={{ kind: "error" }}
+                explain={SUBPOENAS_EXPLAIN}
                 render={() => null}
               />
             </Cell>

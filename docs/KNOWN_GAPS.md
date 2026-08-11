@@ -1,5 +1,22 @@
 # Known Gaps
 
+## D-LDUX-1 never landed in this repo (noted 2026-08-11)
+
+D-LDUX-2 was sequenced to land *after* D-LDUX-1 (`3ea6295d`, the coloured nav).
+**D-LDUX-1 is not on `main` and not on any branch here** — `main` was `2011c16` and
+the only `claude/*` branches carried D-LDPANEL-1 and D-LDAUTH-PKCE-1. LDUX-2 was
+built on `main` as it stood and kept off LDUX-1's likely ground: the header and
+collapsed rail were not restyled (one new panel entry, two label renames), and all
+new colour is read from the profile's existing `brand.accent` rather than a second
+palette. If LDUX-1 lands later, expect conflicts in `src/shell/presets.ts` and in the
+two panel-label maps (`workspace-header.tsx`, `layout-context.tsx`) — nowhere else.
+See `docs/LDUX2-PROOF.md`.
+
+**No Bolt export of the legal app exists in the org.** Searched `dmotheral3-eng`
+2026-08-11: three repos, and an org-wide code search for `"Divorce Litigation"`
+returns zero hits. The evidence-portal idiom in LDUX-2 is emulated from the ruling's
+description, not copied from an export.
+
 ## Law Dog profile: provider column map FIXED — remaining gap is auth-only
 
 The `lawdog` profile serves schema **`legal`** on `aryjtzlawkbazvqsjozf`

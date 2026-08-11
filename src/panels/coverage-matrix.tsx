@@ -3,10 +3,10 @@ import { bus } from "@/bus";
 import { usePanelScope } from "@/shell/panel-scope";
 import { getDataProvider } from "@/data";
 import { LawDogProvider, DOMAINS, type CoverageCell } from "@/data/lawdog-provider";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Search, AlertTriangle } from "lucide-react";
+import { ExplainScreen } from "./explain";
 
 const SHORT: Record<string, string> = {
   chronology: "Chron",
@@ -59,24 +59,60 @@ export function CoverageMatrixPanel() {
     return { total, uncited, attested, cells: total * DOMAINS.length };
   }, [cells]);
 
+  // Explain-first (ruling 2026-08-10): what this is, where you are, what to do
+  // next — above the grid, in every state.
+  const WHAT =
+    "A check on whether anything in the file has gone unexamined: one row per document, one column per way of testing it.";
+
   if (err) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <p className="text-xs text-muted-foreground">{err}</p>
-      </div>
+      <ExplainScreen
+        explain={{
+          title: "What has not been examined",
+          what: WHAT,
+          where: "This screen could not be run in this workspace.",
+          next: "Nothing has been changed. Use the evidence view to look at documents directly.",
+        }}
+      >
+        <p className="p-4 text-[13px] text-muted-foreground">{err}</p>
+      </ExplainScreen>
     );
   }
 
   if (!entityId) {
     return (
-      <div className="flex h-full items-center justify-center p-6">
-        <p className="text-sm text-muted-foreground">Select a matter to screen coverage.</p>
-      </div>
+      <ExplainScreen
+        explain={{
+          title: "What has not been examined",
+          what: WHAT,
+          where: "No matter is open, so there is nothing to screen.",
+          next: "Pick a matter and this fills in.",
+        }}
+      >
+        <p className="p-4 text-[13px] text-muted-foreground">
+          Nothing to screen until a matter is chosen.
+        </p>
+      </ExplainScreen>
     );
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <ExplainScreen
+      explain={{
+        title: "What has not been examined",
+        what: WHAT,
+        where: (
+          <>
+            {stats.total} {stats.total === 1 ? "document" : "documents"} screened across{" "}
+            {DOMAINS.length} ways of testing them — {stats.cells} checks in all.
+          </>
+        ),
+        next:
+          stats.uncited > 0
+            ? `${stats.uncited} ${stats.uncited === 1 ? "document is" : "documents are"} not pointed at by anything in the record. Put eyes on those before calling any of them a gap.`
+            : "Everything here is pointed at by something in the record. Nothing is obviously unexamined.",
+      }}
+    >
       {/* The caveat is part of the panel, not a footnote. It must not be dismissible. */}
       <div className="flex items-start gap-2 border-b border-border bg-amber-500/10 px-3 py-2">
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
@@ -113,7 +149,7 @@ export function CoverageMatrixPanel() {
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <div>
         <table className="w-full text-[11px]">
           <thead className="sticky top-0 z-10 bg-background">
             <tr className="border-b border-border">
@@ -166,7 +202,7 @@ export function CoverageMatrixPanel() {
             ))}
           </tbody>
         </table>
-      </ScrollArea>
-    </div>
+      </div>
+    </ExplainScreen>
   );
 }

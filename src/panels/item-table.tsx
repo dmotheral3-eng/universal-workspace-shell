@@ -4,9 +4,14 @@ import { getDataProvider, type Item } from "@/data";
 import { getVocabulary } from "@/config";
 import { useLayout } from "@/shell/layout-context";
 import { usePanelScope } from "@/shell/panel-scope";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { List } from "lucide-react";
+import { List, ArrowDown } from "lucide-react";
+import {
+  Chip,
+  ExplainScreen,
+  PrimaryAction,
+  humanizeStatus,
+  statusTone,
+} from "./explain";
 
 export function ItemTablePanel() {
   const vocab = getVocabulary();
@@ -55,39 +60,65 @@ export function ItemTablePanel() {
     });
   };
 
+  const one = vocab.entity.toLowerCase();
+  const many = vocab.itemPlural.toLowerCase();
+
+  // Explain-first: this block renders above the table in every state (ruling
+  // 2026-08-10). The table is never the first thing a reader meets.
   if (!entityName) {
     const entityListOpen = isPanelVisible("EntityList");
     return (
-      <div className="flex h-full items-center justify-center p-4">
-        <div className="text-center space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {entityListOpen
-              ? `Select a ${vocab.entity.toLowerCase()} to see their ${vocab.itemPlural.toLowerCase()}.`
-              : `The ${vocab.entityPlural} panel is closed.`
-            }
-          </p>
-          {!entityListOpen && (
-            <button
+      <ExplainScreen
+        explain={{
+          title: vocab.itemPlural,
+          what: `Everything that happened in this ${one}, in the order it happened. Each line opens in full when you click it.`,
+          where: `No ${one} is open, so there is nothing to put in order yet.`,
+          next: entityListOpen
+            ? `Pick a ${one} from the ${vocab.entityPlural} list.`
+            : `The ${vocab.entityPlural} list is closed \u2014 open it and pick a ${one}.`,
+          action: entityListOpen ? undefined : (
+            <PrimaryAction
+              label={`Open ${vocab.entityPlural}`}
+              icon={List}
               onClick={() => openPanel("EntityList")}
-              className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-            >
-              <List className="h-3.5 w-3.5" />
-              Open {vocab.entityPlural}
-            </button>
-          )}
-        </div>
-      </div>
+            />
+          ),
+        }}
+      >
+        <p className="p-4 text-[13px] text-muted-foreground">
+          Nothing to show until a {one} is chosen.
+        </p>
+      </ExplainScreen>
     );
   }
 
+  const newest = sorted.length > 0 ? [...items].sort((a, b) => b.date.localeCompare(a.date))[0] : null;
+
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b border-border px-3 py-1.5">
-        <p className="text-xs text-muted-foreground">
-          {vocab.itemPlural} for <span className="font-medium text-foreground">{entityName}</span>
-        </p>
-      </div>
-      <div className="grid grid-cols-[1fr_90px_80px] gap-2 border-b border-border px-3 py-1.5">
+    <ExplainScreen
+      explain={{
+        title: vocab.itemPlural,
+        what: `Everything that happened in this ${one}, in the order it happened. Sort by any column; click a line to read it in full.`,
+        where: (
+          <>
+            {items.length} {items.length === 1 ? "entry" : "entries"} recorded for{" "}
+            <span className="font-medium">{entityName}</span>
+            {newest ? `, the most recent on ${newest.date}.` : "."}
+          </>
+        ),
+        next: selectedId
+          ? "Open another line, or sort by date to see what has been quiet longest."
+          : `Click any line to read it, or start with the most recent ${vocab.item.toLowerCase()}.`,
+        action: newest ? (
+          <PrimaryAction
+            label="Read the most recent entry"
+            icon={ArrowDown}
+            onClick={() => handleSelect(newest)}
+          />
+        ) : undefined,
+      }}
+    >
+      <div className="sticky top-0 z-10 grid grid-cols-[1fr_100px_110px] gap-2 border-b border-border bg-background px-4 py-1.5">
         <button onClick={() => handleSort("title")} className="text-left text-[11px] font-medium text-muted-foreground hover:text-foreground uppercase tracking-wide">
           {vocab.item} {sortField === "title" && (sortDir === "asc" ? "\u2191" : "\u2193")}
         </button>
@@ -98,33 +129,35 @@ export function ItemTablePanel() {
           Status {sortField === "status" && (sortDir === "asc" ? "\u2191" : "\u2193")}
         </button>
       </div>
-      <ScrollArea className="flex-1">
-        <div className="divide-y divide-border">
-          {sorted.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => handleSelect(item)}
-              className={`
-                w-full grid grid-cols-[1fr_90px_80px] gap-2 px-3 py-2 text-left transition-colors
-                ${selectedId === item.id ? "bg-accent" : "hover:bg-accent/50"}
-              `}
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{item.title}</p>
-                <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{item.type}</p>
-              </div>
-              <span className="self-center text-xs text-muted-foreground font-mono tabular-nums">{item.date}</span>
-              <Badge variant="secondary" className="self-center text-[10px] w-fit">
-                {item.status}
-              </Badge>
-            </button>
-          ))}
-        </div>
-        {items.length === 0 && (
-          <p className="p-4 text-center text-xs text-muted-foreground">No {vocab.itemPlural.toLowerCase()} found.</p>
-        )}
-      </ScrollArea>
-    </div>
+      <div className="divide-y divide-border">
+        {sorted.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => handleSelect(item)}
+            className={`
+              w-full grid grid-cols-[1fr_100px_110px] items-center gap-2 px-4 py-2 text-left transition-colors
+              ${selectedId === item.id ? "bg-accent" : "hover:bg-accent/50"}
+            `}
+          >
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-medium">{item.title}</p>
+              <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{item.type}</p>
+            </div>
+            <span className="text-xs text-muted-foreground font-mono tabular-nums">{item.date}</span>
+            {item.status ? (
+              <Chip label={humanizeStatus(item.status)} tone={statusTone(item.status)} />
+            ) : (
+              <span />
+            )}
+          </button>
+        ))}
+      </div>
+      {items.length === 0 && (
+        <p className="p-4 text-[13px] text-muted-foreground">
+          No {many} recorded for {entityName} yet.
+        </p>
+      )}
+    </ExplainScreen>
   );
 }
 

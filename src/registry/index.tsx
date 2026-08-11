@@ -1,5 +1,6 @@
 import type { PanelType } from "@/config/types";
 import { EntityListPanel } from "@/panels/entity-list";
+import { MatterHomePanel } from "@/panels/matter-home";
 import { ItemTablePanel } from "@/panels/item-table";
 import { ReadingPanePanel } from "@/panels/reading-pane";
 import { ChatRailPanel } from "@/panels/chat-rail";
@@ -17,6 +18,7 @@ import { RecoveryOutlookPanel } from "@/panels/legal/recovery-outlook";
 
 const panelMap: Record<PanelType, React.ComponentType> = {
   EntityList: EntityListPanel,
+  MatterHome: MatterHomePanel,
   ItemTable: ItemTablePanel,
   ReadingPane: ReadingPanePanel,
   ChatRail: ChatRailPanel,

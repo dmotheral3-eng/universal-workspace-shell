@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { LdRecoveryMath, LawDogProvider } from "@/data/lawdog-provider";
 import { LD, LdAccentFigure, LdEmpty, LdJson, dateTime, money, moneyRange } from "./ld-kit";
-import { LdPanelFrame } from "./ld-panel-frame";
+import { LdPanelFrame, type LdExplainCopy } from "./ld-panel-frame";
 import { useLegalData } from "./use-legal-data";
 
 export function RecoveryOutlookView({ rows }: { rows: LdRecoveryMath[] }) {
@@ -53,6 +53,14 @@ export function RecoveryOutlookView({ rows }: { rows: LdRecoveryMath[] }) {
   );
 }
 
+/** Explain-first copy for this panel (ruling 2026-08-10). Exported so the fixture
+ *  harness renders the same words the app does. */
+export const RECOVERY_OUTLOOK_EXPLAIN: LdExplainCopy = {
+  what: "What this matter could be worth in total, as a range, and the arithmetic that produced it.",
+  next: "Read the range, not the middle figure — and check the date it was last calculated.",
+  nextWhenEmpty: "No outlook has been calculated for this matter yet.",
+};
+
 export function RecoveryOutlookPanel() {
   const load = useCallback(
     (provider: LawDogProvider, entityId: string | null) =>
@@ -67,6 +75,8 @@ export function RecoveryOutlookPanel() {
       subject="the recovery outlook"
       meta={entityName}
       state={state}
+      explain={RECOVERY_OUTLOOK_EXPLAIN}
+      countOf={(rows) => rows.length}
       render={(rows) => <RecoveryOutlookView rows={rows} />}
     />
   );

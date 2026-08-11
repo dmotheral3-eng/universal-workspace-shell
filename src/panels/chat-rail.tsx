@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Send, Link } from "lucide-react";
+import { ExplainBlock } from "./explain";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,8 +110,31 @@ export function ChatRailPanel() {
     bus.emit("doc.section", { scopeId: emitScope, docId: citation.docId, sectionId: citation.sectionId });
   };
 
+  const entity = getConfig().vocabulary.entity.toLowerCase();
+
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Explain-first (ruling 2026-08-10). The Ask rail keeps its visual primacy
+          from D-LDUX-1; this block tells a first-time reader what it is FOR. */}
+      <ExplainBlock
+        title="Ask"
+        what={`Ask a plain question about this ${entity} and get an answer back with the exact part of the record it came from.`}
+        where={
+          context?.entityName ? (
+            <>
+              Answering about <span className="font-medium">{context.entityName}</span>
+              {context.itemTitle ? <> › {context.itemTitle}</> : null}.
+            </>
+          ) : (
+            `Nothing is selected, so answers will not be tied to one ${entity}.`
+          )
+        }
+        next={
+          messages.length === 0
+            ? "Type a question below, or start with one of the suggestions."
+            : "Click any citation under an answer to open the record behind it."
+        }
+      />
       <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
         {context?.entityName ? (
           <Badge variant="secondary" className="text-[10px]">

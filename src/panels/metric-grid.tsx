@@ -5,6 +5,7 @@ import { getVocabulary } from "@/config";
 import { useLayout } from "@/shell/layout-context";
 import { usePanelScope } from "@/shell/panel-scope";
 import { TrendingDown, TrendingUp, Minus, List } from "lucide-react";
+import { ExplainScreen, PrimaryAction } from "./explain";
 
 export function MetricGridPanel() {
   const vocab = getVocabulary();
@@ -28,37 +29,50 @@ export function MetricGridPanel() {
     });
   }, [scopeId]);
 
+  const one = vocab.entity.toLowerCase();
+
   if (!entityName) {
     const entityListOpen = isPanelVisible("EntityList");
     return (
-      <div className="flex h-full items-center justify-center p-4">
-        <div className="text-center space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {entityListOpen
-              ? `Select a ${vocab.entity.toLowerCase()} to view key metrics.`
-              : `The ${vocab.entityPlural} panel is closed.`
-            }
-          </p>
-          {!entityListOpen && (
-            <button
+      <ExplainScreen
+        explain={{
+          title: "The numbers",
+          what: `How much of everything there is in a ${one} — counted from the record, not estimated.`,
+          where: `No ${one} is open, so there is nothing to count.`,
+          next: entityListOpen
+            ? `Pick a ${one} from the ${vocab.entityPlural} list.`
+            : `The ${vocab.entityPlural} list is closed — open it and pick a ${one}.`,
+          action: entityListOpen ? undefined : (
+            <PrimaryAction
+              label={`Open ${vocab.entityPlural}`}
+              icon={List}
               onClick={() => openPanel("EntityList")}
-              className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-            >
-              <List className="h-3.5 w-3.5" />
-              Open {vocab.entityPlural}
-            </button>
-          )}
-        </div>
-      </div>
+            />
+          ),
+        }}
+      >
+        <p className="p-4 text-[13px] text-muted-foreground">
+          Nothing to show until a {one} is chosen.
+        </p>
+      </ExplainScreen>
     );
   }
 
   return (
-    <div className="h-full p-3">
-      <p className="mb-3 text-xs text-muted-foreground">
-        Metrics for <span className="font-medium text-foreground">{entityName}</span>
-      </p>
-      <div className="grid grid-cols-2 gap-2">
+    <ExplainScreen
+      explain={{
+        title: "The numbers",
+        what: `How much of everything there is in this ${one}. Every figure is a count of real rows — nothing here is projected or filled in.`,
+        where: (
+          <>
+            {metrics.length} {metrics.length === 1 ? "figure" : "figures"} for{" "}
+            <span className="font-medium">{entityName}</span>.
+          </>
+        ),
+        next: "Read these as a size check. To act on any of them, open the panel that holds the underlying rows.",
+      }}
+    >
+      <div className="grid gap-2 p-4 [grid-template-columns:repeat(auto-fill,minmax(160px,1fr))]">
         {metrics.map((metric) => (
           <div key={metric.id} className="rounded border border-border p-3">
             <p className="text-[11px] text-muted-foreground uppercase tracking-wide">{metric.label}</p>
@@ -80,6 +94,6 @@ export function MetricGridPanel() {
           </div>
         ))}
       </div>
-    </div>
+    </ExplainScreen>
   );
 }
