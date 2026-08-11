@@ -3,6 +3,7 @@ import { bus } from "@/bus";
 import { usePanelScope } from "@/shell/panel-scope";
 import { getDataProvider } from "@/data";
 import { LawDogProvider } from "@/data/lawdog-provider";
+import { isBrokerMode } from "@/data/cube-broker";
 
 /**
  * Wiring shared by the six legal panels: follow the panel's scope, resolve the
@@ -12,6 +13,12 @@ import { LawDogProvider } from "@/data/lawdog-provider";
  * and on the mock provider the default profile runs — the panels must render a
  * quiet line, not a stack trace. `unavailable` is that path, and it is checked
  * before a request is ever issued.
+ *
+ * TWO DOORS, ONE HOOK. A panel may also supply `brokerLoad`. On the cube
+ * profile that path wins and no provider is resolved at all: the data comes
+ * from /api/cube/*, where the server holds the credential and the tenant scope.
+ * A panel with no `brokerLoad` is simply `unavailable` there — that is how a
+ * panel opts in to the brokered door, one panel at a time.
  */
 export type LegalDataState<T> =
   | { kind: "unavailable" }
@@ -27,9 +34,14 @@ interface UseLegalDataResult<T> {
 
 export function useLegalData<T>(
   load: (provider: LawDogProvider, entityId: string | null) => Promise<T>,
-  options?: { requiresEntity?: boolean }
+  options?: {
+    requiresEntity?: boolean;
+    /** Brokered equivalent of `load`. No provider, no credential — see @/data/cube-broker. */
+    brokerLoad?: (entityId: string | null) => Promise<T>;
+  }
 ): UseLegalDataResult<T> {
   const requiresEntity = options?.requiresEntity ?? true;
+  const brokerLoad = options?.brokerLoad;
   const { tab } = usePanelScope();
   const scopeId = tab.scopeId ?? null;
 
@@ -41,6 +53,8 @@ export function useLegalData<T>(
   // the fetch effect depends on the entity, not on a function identity.
   const loadRef = useRef(load);
   loadRef.current = load;
+  const brokerRef = useRef(brokerLoad);
+  brokerRef.current = brokerLoad;
 
   useEffect(() => {
     setEntityId(null);
@@ -52,8 +66,21 @@ export function useLegalData<T>(
   }, [scopeId]);
 
   useEffect(() => {
-    const provider = getDataProvider();
-    if (!(provider instanceof LawDogProvider) || !provider.isCubeStore()) {
+    // Which door is open decides where the rows come from — and on the broker
+    // door no provider is constructed at all, so no key of any kind is needed
+    // in this tab to render the panel.
+    let fetcher: (() => Promise<T>) | null = null;
+    if (isBrokerMode()) {
+      const brokered = brokerRef.current;
+      if (brokered) fetcher = () => brokered(entityId);
+    } else {
+      const provider = getDataProvider();
+      if (provider instanceof LawDogProvider && provider.isCubeStore()) {
+        fetcher = () => loadRef.current(provider, entityId);
+      }
+    }
+
+    if (!fetcher) {
       setState({ kind: "unavailable" });
       return;
     }
@@ -64,8 +91,7 @@ export function useLegalData<T>(
 
     let cancelled = false;
     setState({ kind: "loading" });
-    loadRef
-      .current(provider, entityId)
+    fetcher()
       .then((data) => {
         if (!cancelled) setState({ kind: "ready", data });
       })

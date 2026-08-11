@@ -1,0 +1,30 @@
+{
+  "brand": {
+    "name": "Centripetal Workspace",
+    "logoText": "Centripetal",
+    "accent": "#1B3A63",
+    "background": "#FFFFFF",
+    "mode": "light"
+  },
+  "vocabulary": {
+    "entity": "Matter",
+    "entityPlural": "Matters",
+    "item": "Timeline Event",
+    "itemPlural": "Timeline"
+  },
+  "panels": ["Rates"],
+  "defaultLayout": "BrokerProof",
+  "chat": {
+    "suggestedQuestions": []
+  },
+  "data": {
+    "mode": "cube-broker",
+    "broker": {}
+  },
+  "auth": {
+    "url": "SET_VITE_MASTER_URL",
+    "anonKey": "SET_VITE_MASTER_ANON_KEY",
+    "storageKey": "centripetal.master.session",
+    "label": "Centripetal sign-in"
+  }
+}

@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import type { LdRate, LawDogProvider } from "@/data/lawdog-provider";
+import { listRateCardViaBroker } from "@/data/cube-broker";
 import { LD, LdEmpty, LdNote, humanize, money } from "./ld-kit";
 import { LdPanelFrame, type LdExplainCopy } from "./ld-panel-frame";
 import { useLegalData } from "./use-legal-data";
@@ -52,10 +53,23 @@ export const RATES_EXPLAIN: LdExplainCopy = {
   nextWhenEmpty: "Set the rate card — cost and savings figures elsewhere have nothing to multiply by until you do.",
 };
 
+/**
+ * PROOF SURFACE for the brokered door (D-SHELLAUTH-1).
+ *
+ * The same panel, rendered from either door and identical on screen:
+ *   lawdog profile → the provider talks to Law Dog's project with the user's own token
+ *   cube profile   → /api/cube/rate_card, where the server holds the Cube
+ *                    credential and applies the tenant filter
+ *
+ * The rate card is the honest test of the broker because it is tenant-level and
+ * carries no case_id: tenant scoping is the only thing separating one
+ * workspace's rates from another's.
+ */
 export function RatesPanel() {
   const load = useCallback((provider: LawDogProvider) => provider.listRateCard(), []);
+  const brokerLoad = useCallback(() => listRateCardViaBroker(), []);
   // No entity required: the rate card has no case_id and row security scopes it.
-  const { state } = useLegalData<LdRate[]>(load, { requiresEntity: false });
+  const { state } = useLegalData<LdRate[]>(load, { requiresEntity: false, brokerLoad });
 
   return (
     <LdPanelFrame

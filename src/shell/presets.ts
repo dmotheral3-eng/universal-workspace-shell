@@ -135,6 +135,22 @@ export function getWallLayout(): WorkspaceLayout {
   };
 }
 
+/**
+ * The cube profile's default: one panel, reached through the server broker.
+ *
+ * Deliberately not in PRESET_NAMES — it is not a general operator layout, it is
+ * the proof surface for the brokered door, and every other preset opens panels
+ * that profile has no data path for.
+ */
+export function getBrokerProofLayout(): WorkspaceLayout {
+  return {
+    root: createLeaf("broker-main", [createTab("rates", "Rates", "Rates")]),
+    panelStates: {},
+    collapsedPanels: [],
+    poppedOutPanels: [],
+  };
+}
+
 export function getPreset(name: string): WorkspaceLayout {
   switch (name) {
     case "Classic": return getClassicLayout();
@@ -142,6 +158,7 @@ export function getPreset(name: string): WorkspaceLayout {
     case "Focus": return getFocusLayout();
     case "Ops": return getOpsLayout();
     case "Wall": return getWallLayout();
+    case "BrokerProof": return getBrokerProofLayout();
     default: return getClassicLayout();
   }
 }
