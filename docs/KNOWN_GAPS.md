@@ -102,3 +102,44 @@ the flow now lives in `lawdog-auth.ts` proper.
 non-lawdog `workspace` profile on mock data (`src/config/index.ts`,
 `src/config/workspace.config.json` → `data.mode: "mock"`), which builds and runs
 normally.
+
+## Cube broker (D-SHELLAUTH-1): three live facts this repo cannot verify from CI
+
+The broker is fail-closed everywhere these assumptions could be wrong — a wrong
+guess produces a refusal or a 502, never a wrong-tenant row — but each one is
+owed a live check on first deploy, not a shrug:
+
+1. **`shell_tenant_members` must exist on master, with RLS.** The broker reads
+   it with the *caller's own token* precisely so master's row security does the
+   scoping and no second master secret has to exist. Expected shape is in
+   `ARCHITECTURE.md`. Until the table is there, every brokered call returns
+   `403 tenant_unresolved` — which is the correct posture for "tenancy is not
+   configured yet", not a defect to route around. Do not add a default tenant.
+
+2. **`ld_rate_card.tenant_id` on the Cube is an assumption.** The column name
+   is declared per-resource in `server/broker/resources.ts` and was taken from
+   the table's documented tenant-level shape, not read live from
+   `iofslupbvedjzmfmkdvx`. If it is named otherwise, PostgREST 400s and the
+   broker returns a bare `502 upstream_error` with the detail in the server log.
+   Fix it in the allowlist; do not widen the select or drop the filter.
+
+3. **Entitlements must be seeded.** A membership row with an empty
+   `entitlements` array cannot read anything — `legal.rates` (or `*`) has to be
+   present. Also deliberate: absent means no.
+
+**Multi-tenant operators are refused, not guessed at.** A user with more than
+one active membership and no `X-Tenant-Id` gets `403 tenant_ambiguous`. Pinning
+`data.broker.tenantId` in the profile config is the intended answer; the broker
+still verifies membership on every call.
+
+## Test runner: installed. CI workflow: still owed.
+
+`npm test` (vitest) now exists, which closes the "any test runner" half of the
+note above — the Law Dog mapper assertions that were verified OS-side can now
+come home as repo-resident tests.
+
+What is **not** here is a workflow that runs them on every PR. That needs a push
+carrying `.github/workflows/`, which needs workflow scope on the pushing token;
+it was left out of this branch rather than risk the push. Wire it into the
+dispatch rail, or add it by hand:
+`npm ci && npm run typecheck && npm test`.

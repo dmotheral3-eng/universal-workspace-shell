@@ -1,5 +1,12 @@
 /**
- * Law Dog auth — Supabase GoTrue over plain fetch.
+ * The shell's GoTrue client — Supabase auth over plain fetch.
+ *
+ * Named for Law Dog because that is what it was written for; it is now the one
+ * sign-in implementation for BOTH doors, configured per profile by
+ * `configureAuth()` (src/shell/lawdog-gate.tsx). The Law Dog profile points it
+ * at Law Dog's own project; the cube profile points it at MASTER
+ * (app.centripetal-ai.com), where Google and Microsoft are both already live.
+ * Reuse-first: a second copy of PKCE is a second copy of the 2026-08-09 bug.
  *
  * No @supabase/supabase-js, matching the adapter. This exists so the shell can
  * hold a real user session instead of relying on the anon role.
@@ -15,7 +22,11 @@
  * carrying other people's matters.
  */
 
-const STORAGE_KEY = "lawdog.session";
+const DEFAULT_STORAGE_KEY = "lawdog.session";
+
+/** Which localStorage key holds the session. Per door — two doors on one origin
+ *  must not overwrite each other's session. Set by configureAuth(). */
+let storageKey = DEFAULT_STORAGE_KEY;
 
 export interface LawDogSession {
   access_token: string;
@@ -31,7 +42,7 @@ const listeners = new Set<(s: LawDogSession | null) => void>();
 function load(): LawDogSession | null {
   if (session) return session;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (raw) session = JSON.parse(raw) as LawDogSession;
   } catch {
     session = null;
@@ -42,8 +53,8 @@ function load(): LawDogSession | null {
 function store(s: LawDogSession | null) {
   session = s;
   try {
-    if (s) localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
-    else localStorage.removeItem(STORAGE_KEY);
+    if (s) localStorage.setItem(storageKey, JSON.stringify(s));
+    else localStorage.removeItem(storageKey);
   } catch {
     /* private browsing — session stays in memory only */
   }
@@ -67,17 +78,32 @@ export function isSignedIn(): boolean {
 interface AuthConfig {
   url: string;
   anonKey: string;
+  /** Defaults to "lawdog.session" so the Law Dog door is byte-for-byte unchanged. */
+  storageKey?: string;
 }
 
 let cfg: AuthConfig | null = null;
 
 export function configureAuth(c: AuthConfig) {
   cfg = c;
+  const nextKey = c.storageKey ?? DEFAULT_STORAGE_KEY;
+  if (nextKey !== storageKey) {
+    // Switching doors: drop the in-memory session so a cached one from the
+    // previous door is never handed to the new one.
+    storageKey = nextKey;
+    session = null;
+  }
 }
 
 function requireCfg(): AuthConfig {
-  if (!cfg) throw new Error("Law Dog auth not configured — call configureAuth() at startup.");
+  if (!cfg) throw new Error("Shell auth not configured — call configureAuth() at startup.");
   return cfg;
+}
+
+/** The PKCE verifier is scoped to the door too. The default door keeps its
+ *  historical key so a sign-in already in flight at deploy time still lands. */
+function verifierKey(): string {
+  return storageKey === DEFAULT_STORAGE_KEY ? VERIFIER_KEY : `${storageKey}.pkce_verifier`;
 }
 
 function toSession(json: Record<string, unknown>, fallbackEmail: string): LawDogSession {
@@ -202,8 +228,9 @@ async function deriveChallenge(verifier: string): Promise<string> {
 
 function takeVerifier(): string | null {
   try {
-    const v = sessionStorage.getItem(VERIFIER_KEY);
-    sessionStorage.removeItem(VERIFIER_KEY);
+    const key = verifierKey();
+    const v = sessionStorage.getItem(key);
+    sessionStorage.removeItem(key);
     return v;
   } catch {
     return null;
@@ -227,7 +254,7 @@ export function signInWithProvider(provider: OAuthProvider, redirectTo?: string)
     const verifier = createVerifier();
     const challenge = await deriveChallenge(verifier);
     try {
-      sessionStorage.setItem(VERIFIER_KEY, verifier);
+      sessionStorage.setItem(verifierKey(), verifier);
     } catch {
       // No sessionStorage means no way to hold the verifier across the
       // redirect, and there is no implicit flow to fall back to any more.

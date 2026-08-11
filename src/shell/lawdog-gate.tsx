@@ -9,22 +9,29 @@ import {
   signInWithProvider,
   type LawDogSession,
 } from "@/data/lawdog-auth";
-import { getConfig } from "@/config";
+import { getAuthConfig, getConfig } from "@/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Lock, Loader2 } from "lucide-react";
 
 /**
- * Wraps the workspace when the Law Dog profile is active.
+ * The shell's sign-in gate. Wraps the workspace whenever the active profile
+ * declares a door (`getAuthConfig()`):
  *
- * On any other profile it renders children untouched — the healthcare demo on
- * MockProvider must keep working with no login at all.
+ *   lawdog profile → Law Dog's own project (native, unchanged)
+ *   cube profile   → MASTER, app.centripetal-ai.com — the one door for every
+ *                    Cube-backed surface. Google and Microsoft both live there
+ *                    already, which is the whole point: a Cube surface gets two
+ *                    working providers without wiring a single one.
+ *
+ * On a profile with no door it renders children untouched — the healthcare demo
+ * on MockProvider must keep working with no login at all.
  */
 export function LawDogGate({ children }: { children: ReactNode }) {
   const config = getConfig();
-  const lawdog = config.data.lawdog;
-  const active = config.data.mode.startsWith("lawdog") && !!lawdog;
+  const auth = getAuthConfig();
+  const active = !!auth;
 
   const [session, setSession] = useState<LawDogSession | null>(null);
   const [ready, setReady] = useState(false);
@@ -34,11 +41,11 @@ export function LawDogGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!active || !lawdog) {
+    if (!active || !auth) {
       setReady(true);
       return;
     }
-    configureAuth({ url: lawdog.url, anonKey: lawdog.anonKey });
+    configureAuth({ url: auth.url, anonKey: auth.anonKey, storageKey: auth.storageKey });
 
     // PKCE turns the redirect landing into a network round trip (exchange the
     // one-time code for a session), so this effect resolves asynchronously.
@@ -62,7 +69,7 @@ export function LawDogGate({ children }: { children: ReactNode }) {
       cancelled = true;
       unsubscribe();
     };
-  }, [active, lawdog]);
+  }, [active, auth]);
 
   if (!active) return <>{children}</>;
   if (!ready) return null;
@@ -86,7 +93,7 @@ export function LawDogGate({ children }: { children: ReactNode }) {
       <div className="w-[320px]">
         <div className="mb-6 flex items-center gap-2">
           <Lock className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">{config.brand.name}</span>
+          <span className="text-sm font-medium">{auth?.label ?? config.brand.name}</span>
         </div>
 
         <div className="space-y-3">
