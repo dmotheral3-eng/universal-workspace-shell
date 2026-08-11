@@ -31,12 +31,32 @@ export interface ChatContextEvent {
   itemTitle: string | null;
 }
 
+/**
+ * "Put the cursor in the Ask box." Navigation gets the rail on screen; this is
+ * the part that makes "Ask a question →" land the reader somewhere they can type.
+ */
+export interface AskFocusEvent {
+  scopeId: string;
+}
+
+/**
+ * Pre-set the Evidence view's status filter, so a count on another screen can
+ * open the evidence already narrowed to the documents it was counting. Buckets
+ * are the `statusTone()` buckets; "all" clears the filter.
+ */
+export interface EvidenceFilterEvent {
+  scopeId: string;
+  filter: "all" | "good" | "warn" | "risk";
+}
+
 export interface BusEvents {
   "entity.selected": EntitySelectedEvent;
   "item.selected": ItemSelectedEvent;
   "doc.open": DocOpenEvent;
   "doc.section": DocSectionEvent;
   "chat.context": ChatContextEvent;
+  "ask.focus": AskFocusEvent;
+  "evidence.filter": EvidenceFilterEvent;
 }
 
 export type BusEventName = keyof BusEvents;

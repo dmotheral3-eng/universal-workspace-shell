@@ -1,6 +1,6 @@
 import { createContext, useContext, useCallback, useState, useEffect, useRef, type ReactNode } from "react";
 import type { WorkspaceLayout, LayoutNode, PanelTab, DropZone, NamedLayout, PoppedOutPanel } from "./layout-tree";
-import { removeNode, insertAtDropZone, generateId, createLeaf, createTab, serializeLayout, deserializeLayout } from "./layout-tree";
+import { removeNode, insertAtDropZone, generateId, createLeaf, createTab, serializeLayout, deserializeLayout, resolvePanelTarget, setActiveTabIndex } from "./layout-tree";
 import { getPreset } from "./presets";
 import { getConfig, type PanelType } from "@/config";
 
@@ -45,6 +45,16 @@ interface LayoutContextValue {
   importLayout: (json: string) => void;
   updateSizes: (splitId: string, sizes: number[]) => void;
   isPanelVisible: (panelType: PanelType) => boolean;
+  /** Make tab `tabIndex` the visible one in `leafId`. What the tab strip does. */
+  setActiveTab: (leafId: string, tabIndex: number) => void;
+  /**
+   * THE navigation mechanism. Put `panelType` in front of the reader, whatever
+   * state it is in: background tab → raise it; collapsed → restore it; absent →
+   * mount it. Returns true when the panel had to be mounted or restored, which
+   * is the caller's cue that it subscribed to the bus too late to have heard
+   * anything emitted on this tick.
+   */
+  focusPanel: (panelType: PanelType) => boolean;
   openPanel: (panelType: PanelType) => void;
   openNewInstance: (panelType: PanelType) => void;
   getVisiblePanelTypes: () => PanelType[];
@@ -326,15 +336,39 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
     return collectAllTabs(layout.root).filter((t) => t.panelType === panelType);
   }, [layout]);
 
-  const openPanel = useCallback((panelType: PanelType) => {
-    const inCollapsed = layout.collapsedPanels.find((t) => t.panelType === panelType);
-    if (inCollapsed) {
-      restorePanel(inCollapsed);
-      return;
+  const setActiveTab = useCallback((leafId: string, tabIndex: number) => {
+    setLayoutWithUndo((prev) => {
+      const leaf = findLeaf(prev.root, leafId);
+      if (!leaf) return prev;
+      if (tabIndex < 0 || tabIndex >= leaf.tabs.length) return prev;
+      if (leaf.activeTabIndex === tabIndex) return prev;
+      return { ...prev, root: setActiveTabIndex(prev.root, leafId, tabIndex) };
+    });
+  }, [setLayoutWithUndo]);
+
+  /**
+   * One door for "take me to that panel". The old `openPanel` returned early
+   * whenever the panel existed anywhere in the tree — which, for a panel sitting
+   * as a background tab beside the caller, meant the click did nothing at all
+   * (D-LDNAV-1). Being a tab is not being on screen.
+   */
+  const focusPanel = useCallback((panelType: PanelType): boolean => {
+    const target = resolvePanelTarget(layout, panelType);
+    if (target.kind === "raise") {
+      // A different maximized leaf would swallow the panel we just raised.
+      setMaximizedPanel((cur) => (cur !== null && cur !== target.leafId ? null : cur));
+      setActiveTab(target.leafId, target.tabIndex);
+      return false;
     }
-    if (isPanelVisible(panelType)) return;
-    openNewInstanceInternal(panelType);
-  }, [layout, restorePanel, isPanelVisible]);
+    setMaximizedPanel(null);
+    if (target.kind === "restore") restorePanel(target.tab);
+    else openNewInstanceInternal(panelType);
+    return true;
+  }, [layout, restorePanel, setActiveTab]);
+
+  // Kept for every existing caller; "open it" and "show it to me" are the same
+  // request, and there is deliberately only one implementation of it.
+  const openPanel = focusPanel;
 
   function openNewInstanceInternal(panelType: PanelType) {
     const existingCount = collectAllTabs(layout.root).filter((t) => t.panelType === panelType).length
@@ -428,7 +462,7 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
         undo, canUndo: undoStack.length > 0,
         savedLayouts, saveLayout, loadLayout, deleteLayout,
         exportLayout, importLayout, updateSizes,
-        isPanelVisible, openPanel, openNewInstance, getVisiblePanelTypes,
+        isPanelVisible, setActiveTab, focusPanel, openPanel, openNewInstance, getVisiblePanelTypes,
         getAllTabs, getTabsByType, setScopeForTab,
         popOutPanel, returnPoppedPanel, poppedOutPanels: layout.poppedOutPanels ?? [],
       }}

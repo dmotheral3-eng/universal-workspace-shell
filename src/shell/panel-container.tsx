@@ -138,20 +138,9 @@ export function PanelContainer({ leaf }: PanelContainerProps) {
 }
 
 function TabBar({ leaf }: { leaf: LayoutLeaf }) {
-  const { setLayout, layout } = useLayout();
-
-  const setActiveTab = useCallback((index: number) => {
-    const updateLeaf = (node: import("./layout-tree").LayoutNode): import("./layout-tree").LayoutNode => {
-      if (node.type === "leaf" && node.id === leaf.id) {
-        return { ...node, activeTabIndex: index };
-      }
-      if (node.type === "split") {
-        return { ...node, children: node.children.map(updateLeaf) };
-      }
-      return node;
-    };
-    setLayout({ ...layout, root: updateLeaf(layout.root) });
-  }, [leaf.id, layout, setLayout]);
+  // The strip and the cards on Matter home now go through the same switcher, so
+  // there is one panel-navigation mechanism in the shell and not two.
+  const { setActiveTab } = useLayout();
 
   const handleDragStart = useCallback((e: DragEvent, tabIndex: number) => {
     e.dataTransfer.setData("application/panel-tab", JSON.stringify({ sourceLeafId: leaf.id, tabIndex }));
@@ -168,7 +157,7 @@ function TabBar({ leaf }: { leaf: LayoutLeaf }) {
             key={tab.id}
             draggable
             onDragStart={(e) => handleDragStart(e, index)}
-            onClick={() => setActiveTab(index)}
+            onClick={() => setActiveTab(leaf.id, index)}
             className={`
               flex cursor-pointer items-center gap-1.5 border-r border-border px-3 py-1.5
               text-xs font-medium transition-colors select-none

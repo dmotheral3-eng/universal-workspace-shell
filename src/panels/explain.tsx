@@ -141,7 +141,8 @@ export function Chip({
       type="button"
       title={title}
       onClick={onClick}
-      className={`${base} transition-shadow hover:brightness-95 ${active ? "ring-2 ring-offset-1 ring-offset-background ring-foreground/30" : ""}`}
+      aria-label={count !== undefined ? `${label}: ${count}` : label}
+      className={`${base} cursor-pointer transition-shadow hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background ${active ? "ring-2 ring-offset-1 ring-offset-background ring-foreground/30" : ""}`}
     >
       {body}
     </button>
@@ -169,8 +170,9 @@ export function PrimaryAction({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={label}
       style={{ backgroundColor: getBrand().accent }}
-      className="inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium text-white shadow-sm transition hover:brightness-110 disabled:opacity-50"
+      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-3 text-[13px] font-medium text-white shadow-sm transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50"
     >
       {Icon && <Icon className="h-4 w-4" />}
       {label}
@@ -191,7 +193,8 @@ export function SecondaryAction({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[13px] font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
+      aria-label={label}
+      className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border bg-card px-3 text-[13px] font-medium text-foreground shadow-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {Icon && <Icon className="h-4 w-4" />}
       {label}
@@ -355,6 +358,18 @@ export function CardGrid({ children }: { children: ReactNode }) {
 /**
  * A card, not a table row: large plain-English title, one line saying what it is
  * for, a count, status chips, and one obvious way in.
+ *
+ * WHY THIS IS NOT ONE BIG <button> (D-LDNAV-1): the count and the chips are
+ * destinations of their own — "77 pending" goes somewhere narrower than the card
+ * does — and interactive elements may not nest inside a button. So the card is a
+ * plain container, the CTA is a real button whose ::after stretches over the
+ * whole card, and the count/chips sit above it on the z-axis with their own
+ * handlers. Whole-card click survives; the finer targets still win where they
+ * overlap.
+ *
+ * A card with no `onOpen` renders its CTA as a disabled button carrying
+ * `disabledReason` as its tooltip. A link that looks alive and is not is the bug;
+ * an honest dead end is not.
  */
 export function SectionCard({
   title,
@@ -366,6 +381,9 @@ export function SectionCard({
   tone = "neutral",
   actionLabel,
   onOpen,
+  onCount,
+  countHint,
+  disabledReason = "Not built yet.",
   emphasis,
 }: {
   title: string;
@@ -376,18 +394,25 @@ export function SectionCard({
   icon?: ComponentType<{ className?: string }>;
   tone?: Tone;
   actionLabel: string;
-  onOpen: () => void;
+  /** Omit to render the CTA disabled — there is nowhere honest to send the reader. */
+  onOpen?: () => void;
+  /** Makes the count figure its own destination. */
+  onCount?: () => void;
+  /** Tooltip for the count target. */
+  countHint?: string;
+  disabledReason?: string;
   /** The one card on the screen that should pull the eye first. */
   emphasis?: boolean;
 }) {
+  const accent = getBrand().accent;
+  const countText = `${count} ${countLabel ?? ""}`.trim();
+
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={`group flex flex-col rounded-lg border bg-card p-4 text-left shadow-sm transition hover:shadow-md ${
-        emphasis ? "border-transparent ring-2" : "border-border hover:border-foreground/20"
-      }`}
-      style={emphasis ? { boxShadow: `0 0 0 2px ${getBrand().accent}` } : undefined}
+    <div
+      className={`group relative flex flex-col rounded-lg border bg-card p-4 text-left shadow-sm transition focus-within:ring-2 focus-within:ring-ring ${
+        onOpen ? "hover:shadow-md" : ""
+      } ${emphasis ? "border-transparent" : "border-border hover:border-foreground/20"}`}
+      style={emphasis ? { boxShadow: `0 0 0 2px ${accent}` } : undefined}
     >
       <div className="flex items-start gap-3">
         {Icon && (
@@ -406,26 +431,61 @@ export function SectionCard({
       </div>
 
       {(count !== undefined || chips) && (
-        <div className="mt-3 flex flex-wrap items-center gap-1.5">
-          {count !== undefined && (
-            <span className="font-mono text-[20px] font-semibold leading-none tabular-nums text-foreground">
-              {count}
-            </span>
-          )}
-          {countLabel && (
-            <span className="mr-1 text-[12px] text-muted-foreground">{countLabel}</span>
-          )}
+        // z-10: these sit ABOVE the CTA's stretched hit area, so a click on a
+        // chip is a click on the chip.
+        <div className="relative z-10 mt-3 flex flex-wrap items-center gap-1.5">
+          {count !== undefined &&
+            (onCount ? (
+              <button
+                type="button"
+                onClick={onCount}
+                title={countHint}
+                aria-label={`${countText} — ${title}`}
+                className="-mx-1 inline-flex cursor-pointer items-baseline gap-1.5 rounded px-1 py-0.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="font-mono text-[20px] font-semibold leading-none tabular-nums text-foreground underline decoration-dotted decoration-from-font underline-offset-4">
+                  {count}
+                </span>
+                {countLabel && <span className="text-[12px] text-muted-foreground">{countLabel}</span>}
+              </button>
+            ) : (
+              <>
+                <span className="font-mono text-[20px] font-semibold leading-none tabular-nums text-foreground">
+                  {count}
+                </span>
+                {countLabel && (
+                  <span className="mr-1 text-[12px] text-muted-foreground">{countLabel}</span>
+                )}
+              </>
+            ))}
           {chips}
         </div>
       )}
 
-      <span
-        className="mt-3 inline-flex items-center text-[12px] font-medium"
-        style={{ color: getBrand().accent }}
-      >
-        {actionLabel} →
-      </span>
-    </button>
+      {/* The focus ring lives on the CTA itself, not only on the card: the
+          emphasised card's inline boxShadow would overwrite a card-level one. */}
+      {onOpen ? (
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`${actionLabel} — ${title}`}
+          className="mt-3 inline-flex cursor-pointer items-center self-start rounded-sm text-[12px] font-medium underline-offset-2 group-hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background after:absolute after:inset-0 after:rounded-lg after:content-['']"
+          style={{ color: accent }}
+        >
+          {actionLabel} <span aria-hidden="true">&nbsp;→</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          disabled
+          title={disabledReason}
+          aria-label={`${actionLabel} — ${title} (${disabledReason})`}
+          className="mt-3 inline-flex cursor-not-allowed items-center self-start text-[12px] font-medium text-muted-foreground"
+        >
+          {actionLabel} <span className="ml-1.5 italic">— not built yet</span>
+        </button>
+      )}
+    </div>
   );
 }
 
