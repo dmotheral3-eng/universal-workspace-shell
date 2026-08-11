@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const ALL_PANEL_TYPES: PanelType[] = [
-  "EntityList", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix",
+  "EntityList", "MatterHome", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix",
   "Parties", "Rates", "Savings", "Subpoenas", "ClaimValue", "RecoveryOutlook",
 ];
 
@@ -30,11 +30,12 @@ function panelLabel(panelType: PanelType): string {
   const vocab = getConfig().vocabulary;
   switch (panelType) {
     case "EntityList": return vocab.entityPlural;
+    case "MatterHome": return `${vocab.entity} home`;
     case "ItemTable": return vocab.itemPlural;
     case "ReadingPane": return "Reading Pane";
-    case "ChatRail": return "Assistant";
+    case "ChatRail": return "Ask";
     case "StageTracker": return "Stages";
-    case "DocBrowser": return "Documents";
+    case "DocBrowser": return "Evidence";
     case "MetricGrid": return "Metrics";
     case "MasterBoard": return "Master Board";
     case "CoverageMatrix": return "Coverage Matrix";

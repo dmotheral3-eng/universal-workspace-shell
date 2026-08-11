@@ -127,6 +127,58 @@ export function LdBody({ children }: { children: ReactNode }) {
   return <div className="min-h-0 flex-1 overflow-auto">{children}</div>;
 }
 
+/**
+ * EXPLAIN-FIRST BLOCK, in this file's palette.
+ *
+ * Ruling (Dave, 2026-08-10, binding): every screen leads with plain English —
+ * what this is, where you are, what to do next — ABOVE the dense component. These
+ * six panels are dense by nature, which is exactly why they need it.
+ *
+ * It is written here rather than reusing `panels/explain` because these panels
+ * are pinned to the fixed light palette above and must not follow the shell's
+ * light/dark mode.
+ */
+export function LdExplain({
+  what,
+  where,
+  next,
+}: {
+  what: string;
+  where: ReactNode;
+  next: ReactNode;
+}) {
+  return (
+    <div
+      className="shrink-0 border-b px-3 py-2.5"
+      style={{ borderColor: LD.hairline, background: LD.wash }}
+    >
+      <p className="text-[12px] leading-[1.5]" style={{ color: LD.ink }}>
+        {what}
+      </p>
+      <dl className="mt-2 grid grid-cols-[78px_1fr] gap-x-2.5 gap-y-1">
+        <dt
+          className="pt-[2px] text-[10px] font-semibold uppercase tracking-wider"
+          style={{ color: LD.inkFaint }}
+        >
+          Where
+        </dt>
+        <dd className="text-[12px]" style={{ color: LD.inkMuted }}>
+          {where}
+        </dd>
+        <dt
+          className="pt-[2px] text-[10px] font-semibold uppercase tracking-wider"
+          style={{ color: LD.inkFaint }}
+        >
+          Do next
+        </dt>
+        <dd className="text-[12px]" style={{ color: LD.inkMuted }}>
+          {next}
+        </dd>
+      </dl>
+    </div>
+  );
+}
+
 export function LdFooter({ children }: { children: ReactNode }) {
   return (
     <div

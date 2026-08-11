@@ -28,3 +28,6 @@ dist-bundle-test
 *.njsproj
 *.sln
 *.sw?
+
+# Proof build output — scripts/ldux2-proof.sh
+dist-proof

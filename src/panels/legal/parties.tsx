@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { groupPartiesByRole, type LdParty, type LawDogProvider } from "@/data/lawdog-provider";
 import { LD, LdEmpty, LdPill, humanize } from "./ld-kit";
-import { LdPanelFrame } from "./ld-panel-frame";
+import { LdPanelFrame, type LdExplainCopy } from "./ld-panel-frame";
 import { useLegalData } from "./use-legal-data";
 
 /** Pure view — rendered by the panel and by the fixture harness. */
@@ -57,6 +57,14 @@ export function PartiesView({ parties }: { parties: LdParty[] }) {
   );
 }
 
+/** Explain-first copy for this panel (ruling 2026-08-10). Exported so the fixture
+ *  harness renders the same words the app does. */
+export const PARTIES_EXPLAIN: LdExplainCopy = {
+  what: "Who is on each side of this matter, and which lawyer speaks for them.",
+  next: "Check that every side has counsel listed before you serve anything.",
+  nextWhenEmpty: "Add the parties before anything that depends on service or notice.",
+};
+
 export function PartiesPanel() {
   const load = useCallback(
     (provider: LawDogProvider, entityId: string | null) => provider.listParties(entityId ?? ""),
@@ -70,6 +78,8 @@ export function PartiesPanel() {
       subject="parties"
       meta={entityName}
       state={state}
+      explain={PARTIES_EXPLAIN}
+      countOf={(rows) => rows.length}
       render={(parties) => <PartiesView parties={parties} />}
     />
   );

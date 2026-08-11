@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { LdSaving, LawDogProvider } from "@/data/lawdog-provider";
 import { LD, LdEmpty, LdFooter, LdPill, dateOnly, hours, humanize, money, rate } from "./ld-kit";
-import { LdPanelFrame } from "./ld-panel-frame";
+import { LdPanelFrame, type LdExplainCopy } from "./ld-panel-frame";
 import { useLegalData } from "./use-legal-data";
 
 export function savingsTotal(rows: LdSaving[]): number {
@@ -68,6 +68,14 @@ export function SavingsFooter({ rows }: { rows: LdSaving[] }) {
   );
 }
 
+/** Explain-first copy for this panel (ruling 2026-08-10). Exported so the fixture
+ *  harness renders the same words the app does. */
+export const SAVINGS_EXPLAIN: LdExplainCopy = {
+  what: "Work the system did instead of a person, priced at the rate that person would have charged.",
+  next: "Treat anything marked as an estimate as an estimate — the total below says how many there are.",
+  nextWhenEmpty: "Nothing has been displaced on this matter yet.",
+};
+
 export function SavingsPanel() {
   const load = useCallback(
     (provider: LawDogProvider, entityId: string | null) => provider.listSavings(entityId ?? ""),
@@ -81,6 +89,8 @@ export function SavingsPanel() {
       subject="savings"
       meta={entityName}
       state={state}
+      explain={SAVINGS_EXPLAIN}
+      countOf={(rows) => rows.length}
       render={(rows) => <SavingsView rows={rows} />}
       footer={(rows) => (rows.length > 0 ? <SavingsFooter rows={rows} /> : null)}
     />

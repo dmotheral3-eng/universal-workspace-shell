@@ -4,8 +4,8 @@ import { getDataProvider, type Stage } from "@/data";
 import { getVocabulary } from "@/config";
 import { useLayout } from "@/shell/layout-context";
 import { usePanelScope } from "@/shell/panel-scope";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Check, Circle, Clock, AlertTriangle, List } from "lucide-react";
+import { ExplainScreen, PrimaryAction, ProgressStrip } from "./explain";
 
 const stateConfig = {
   done: { icon: Check, className: "bg-primary text-primary-foreground", lineClass: "bg-primary" },
@@ -36,37 +36,64 @@ export function StageTrackerPanel() {
     });
   }, [scopeId]);
 
+  const one = vocab.entity.toLowerCase();
+
   if (!entityName) {
     const entityListOpen = isPanelVisible("EntityList");
     return (
-      <div className="flex h-full items-center justify-center p-4">
-        <div className="text-center space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {entityListOpen
-              ? `Select a ${vocab.entity.toLowerCase()} to view progress stages.`
-              : `The ${vocab.entityPlural} panel is closed.`
-            }
-          </p>
-          {!entityListOpen && (
-            <button
+      <ExplainScreen
+        explain={{
+          title: "Where things stand",
+          what: `The stages a ${one} moves through from start to finish, and which one it is sitting in right now.`,
+          where: `No ${one} is open, so there is no position to report.`,
+          next: entityListOpen
+            ? `Pick a ${one} from the ${vocab.entityPlural} list.`
+            : `The ${vocab.entityPlural} list is closed — open it and pick a ${one}.`,
+          action: entityListOpen ? undefined : (
+            <PrimaryAction
+              label={`Open ${vocab.entityPlural}`}
+              icon={List}
               onClick={() => openPanel("EntityList")}
-              className="inline-flex items-center gap-1.5 rounded border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-            >
-              <List className="h-3.5 w-3.5" />
-              Open {vocab.entityPlural}
-            </button>
-          )}
-        </div>
-      </div>
+            />
+          ),
+        }}
+      >
+        <p className="p-4 text-[13px] text-muted-foreground">
+          Nothing to show until a {one} is chosen.
+        </p>
+      </ExplainScreen>
     );
   }
 
+  const blocked = stages.find((s) => s.state === "blocked");
+  const current = stages.find((s) => s.state === "current");
+  const doneCount = stages.filter((s) => s.state === "done").length;
+
   return (
-    <ScrollArea className="h-full">
+    <ExplainScreen
+      explain={{
+        title: "Where things stand",
+        what: `The stages this ${one} moves through from start to finish. Green is finished, blue is where you are now, grey is still ahead.`,
+        where: blocked
+          ? `Blocked at “${blocked.name}”${blocked.detail ? ` — ${blocked.detail}` : ""}.`
+          : current
+            ? `In “${current.name}”${current.detail ? ` — ${current.detail}` : ""}.`
+            : stages.length > 0 && doneCount === stages.length
+              ? "Every recorded stage is finished."
+              : "Not started — the first stage is still open.",
+        next: blocked
+          ? `Clear whatever is holding up “${blocked.name}”.`
+          : current
+            ? `Finish “${current.name}”, then the next stage opens.`
+            : "Nothing is in flight. Nothing is waiting on you here.",
+        orientation: (
+          <ProgressStrip
+            steps={stages.map((s) => ({ id: s.id, label: s.name, state: s.state, detail: s.detail }))}
+          />
+        ),
+      }}
+    >
       <div className="p-4">
-        <p className="mb-4 text-xs text-muted-foreground">
-          Progress for <span className="font-medium text-foreground">{entityName}</span>
-        </p>
         <div className="space-y-0">
           {stages.map((stage, index) => {
             const cfg = stateConfig[stage.state];
@@ -92,7 +119,12 @@ export function StageTrackerPanel() {
             );
           })}
         </div>
+        {stages.length === 0 && (
+          <p className="text-[13px] text-muted-foreground">
+            No stages recorded for {entityName} yet.
+          </p>
+        )}
       </div>
-    </ScrollArea>
+    </ExplainScreen>
   );
 }

@@ -507,6 +507,10 @@ export class LawDogProvider implements DataProvider {
       sections,
       createdAt: String(r.created_at ?? ""),
       category: String(r.category ?? "uncategorised"),
+      // Each store keeps its evidentiary posture in a different column; the
+      // evidence view wants one field. cube has status, dave-legal has completeness.
+      status:
+        (this.cfg.store === "cube" ? str(r.status) : str(r.completeness)) ?? undefined,
     };
   }
 
