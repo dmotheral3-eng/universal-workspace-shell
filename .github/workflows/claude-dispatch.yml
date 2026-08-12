@@ -80,7 +80,7 @@ jobs:
           base_branch: ${{ inputs.base_branch }}
           # Headless trusted runner: grant Claude its tools. The action's default sandbox
           # denies Bash/git/Write (permission_denials), which is why prior runs pushed nothing.
-          claude_args: "--dangerously-skip-permissions"
+          claude_args: "--dangerously-skip-permissions --model claude-sonnet-4-6"
           # The action exposes no branch output, so Claude does the git itself.
           prompt: |
             You are running headless in GitHub Actions on ${{ github.repository }} (base branch ${{ inputs.base_branch }}).
