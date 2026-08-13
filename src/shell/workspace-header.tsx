@@ -1,7 +1,7 @@
-import { getBrand, getConfig, type PanelType } from "@/config";
+import { getBrand, getConfig, getAuthConfig, type PanelType } from "@/config";
 import { useLayout } from "./layout-context";
 import { PRESET_NAMES } from "./presets";
-import { Download, Upload, Layout, PanelLeft, Undo2, RotateCcw, Check, Plus } from "lucide-react";
+import { Download, Upload, Layout, PanelLeft, Undo2, RotateCcw, Check, Plus, UserCircle, LogOut } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,8 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useEffect, useState } from "react";
+import { getSession, onAuthChange, signOut, type LawDogSession } from "@/data/lawdog-auth";
 
 const ALL_PANEL_TYPES: PanelType[] = [
   "EntityList", "MatterHome", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix",
@@ -50,12 +52,25 @@ function panelLabel(panelType: PanelType): string {
 
 export function WorkspaceHeader() {
   const brand = getBrand();
+  const auth = getAuthConfig();
   const {
     switchLayout, resetToDefault, undo, canUndo,
     savedLayouts, saveLayout, loadLayout,
     exportLayout, importLayout,
     openPanel, openNewInstance, getVisiblePanelTypes,
   } = useLayout();
+
+  const [session, setSession] = useState<LawDogSession | null>(() => getSession());
+  useEffect(() => {
+    if (!auth) return;
+    setSession(getSession());
+    return onAuthChange(setSession);
+  }, [auth]);
+
+  const handleSignOut = async () => {
+    await signOut();
+    // LawDogGate listens to auth changes and will re-render the login form.
+  };
 
   const visiblePanels = getVisiblePanelTypes();
   const panelTypes = availablePanelTypes();
@@ -195,6 +210,31 @@ export function WorkspaceHeader() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {auth && session && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                aria-label="Account"
+              >
+                <UserCircle className="h-3.5 w-3.5" />
+                <span className="max-w-[120px] truncate">{session.email}</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <div className="px-2 py-1.5">
+                <p className="text-[10px] text-muted-foreground">Signed in as</p>
+                <p className="text-xs font-medium truncate">{session.email}</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="text-xs text-destructive focus:text-destructive">
+                <LogOut className="mr-2 h-3.5 w-3.5" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </header>
   );

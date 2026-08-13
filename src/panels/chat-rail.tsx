@@ -29,20 +29,24 @@ interface Message {
   citations?: Citation[];
 }
 
-async function sendMessage(context: ChatContextEvent | null, _text: string): Promise<{ reply: string; citations: Citation[] }> {
+async function sendMessage(context: ChatContextEvent | null, text: string): Promise<{ reply: string; citations: Citation[] }> {
   await new Promise((r) => setTimeout(r, 600));
 
-  const contextStr = context?.entityName
-    ? `Regarding ${context.entityName}${context.itemTitle ? ` / ${context.itemTitle}` : ""}: `
-    : "";
+  const matter = context?.entityName ?? null;
+  const item = context?.itemTitle ?? null;
 
-  return {
-    reply: `${contextStr}Based on the available information, I can help with that. The relevant details have been reviewed and the recommended next steps are outlined in the associated documentation.`,
-    citations: [
-      { label: "Care Plan Summary \u00A7 Overview", docId: "d1", sectionId: "s1" },
-      { label: "Lab Results \u00A7 HbA1c", docId: "d3", sectionId: "s13" },
-    ],
-  };
+  let reply: string;
+  if (matter) {
+    reply = item
+      ? `On ${matter} \u2014 ${item}: the record shows no gap in the timeline for this event. Review the provenance references and confirm the exhibit is production-ready before filing.`
+      : `On ${matter}: based on the available matter file, the next unexamined area is the provenance chain for the most recent document batch. Check the Evidence screen for items without an attestation date.`;
+  } else {
+    reply = `No matter is selected \u2014 open a matter first so answers are grounded in its record. You asked: "${text.slice(0, 120)}".`;
+  }
+
+  // Citations are populated from real document data when connected; the mock
+  // returns none so no fixture from another vertical bleeds in.
+  return { reply, citations: [] };
 }
 
 export function ChatRailPanel() {
