@@ -15,6 +15,7 @@ import { SavingsPanel } from "@/panels/legal/savings";
 import { SubpoenasPanel } from "@/panels/legal/subpoenas";
 import { ClaimValuePanel } from "@/panels/legal/claim-value";
 import { RecoveryOutlookPanel } from "@/panels/legal/recovery-outlook";
+import { LedgerPanel } from "@/panels/legal/ledger";
 
 const panelMap: Record<PanelType, React.ComponentType> = {
   EntityList: EntityListPanel,
@@ -33,6 +34,7 @@ const panelMap: Record<PanelType, React.ComponentType> = {
   Subpoenas: SubpoenasPanel,
   ClaimValue: ClaimValuePanel,
   RecoveryOutlook: RecoveryOutlookPanel,
+  Ledger: LedgerPanel,
 };
 
 interface PanelRegistryProps {

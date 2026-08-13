@@ -71,7 +71,9 @@ export type PanelType =
   | "Savings"
   | "Subpoenas"
   | "ClaimValue"
-  | "RecoveryOutlook";
+  | "RecoveryOutlook"
+  // the matter's three-actor record — who said, did, produced, refused (port of the Ledger Console)
+  | "Ledger";
 
 export interface WorkspaceConfig {
   brand: BrandConfig;
