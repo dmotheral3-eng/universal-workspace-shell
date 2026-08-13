@@ -47,6 +47,7 @@ function panelLabel(panelType: PanelType): string {
     case "Subpoenas": return "Subpoenas";
     case "ClaimValue": return "Claim value";
     case "RecoveryOutlook": return "Recovery outlook";
+    case "Ledger": return "Ledger";
   }
 }
 

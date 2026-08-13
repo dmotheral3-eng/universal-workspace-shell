@@ -402,7 +402,7 @@ export class LawDogProvider implements DataProvider {
     if (!res.ok) {
       throw new Error(`LawDog ${table} ${res.status}: ${await res.text()}`);
     }
-    return res.json();
+    return (await res.json()) as T[];
   }
 
   private caseFilter(): string {

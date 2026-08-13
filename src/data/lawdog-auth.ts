@@ -22,6 +22,8 @@
  * carrying other people's matters.
  */
 
+/// <reference lib="dom" />
+
 const DEFAULT_STORAGE_KEY = "lawdog.session";
 
 /** Which localStorage key holds the session. Per door — two doors on one origin
@@ -126,7 +128,7 @@ export async function signIn(email: string, password: string): Promise<LawDogSes
     headers: { apikey: anonKey, "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  const json = await res.json();
+  const json = (await res.json()) as Record<string, unknown>;
   if (!res.ok) {
     throw new Error(String(json.error_description ?? json.msg ?? json.error ?? "Sign-in failed"));
   }
@@ -160,7 +162,7 @@ async function refresh(): Promise<LawDogSession | null> {
     store(null);
     return null;
   }
-  const next = toSession(await res.json(), s.email);
+  const next = toSession((await res.json()) as Record<string, unknown>, s.email);
   store(next);
   return next;
 }
@@ -335,7 +337,7 @@ async function exchangePkceCode(): Promise<LawDogSession | null> {
     headers: { apikey: anonKey, "Content-Type": "application/json" },
     body: JSON.stringify({ auth_code: code, code_verifier: verifier }),
   });
-  const json = await res.json();
+  const json = (await res.json()) as Record<string, unknown>;
   if (!res.ok) {
     throw new Error(
       String(json.error_description ?? json.msg ?? json.error ?? "OAuth sign-in failed"),

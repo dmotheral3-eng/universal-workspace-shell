@@ -1,4 +1,3 @@
-import { getDataProvider } from "@/data";
 import type { LawDogProvider } from "@/data/lawdog-provider";
 import { LdPanelFrame, type LdExplainCopy } from "./ld-panel-frame";
 import { useLegalData } from "./use-legal-data";
