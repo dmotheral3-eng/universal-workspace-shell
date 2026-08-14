@@ -3,7 +3,7 @@ import { useLayout } from "./layout-context";
 import {
   List, Home, Table, FileText, MessageSquare, GitBranch,
   BarChart3, FolderOpen, LayoutDashboard, Grid3X3,
-  Users, Tag, PiggyBank, Gavel, Calculator, Target,
+  Users, Tag, PiggyBank, Gavel, Calculator, Target, ScrollText,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -24,6 +24,7 @@ const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ className?: st
   Subpoenas:      { icon: Gavel,           label: "Subpoenas",      group: "legal" },
   ClaimValue:     { icon: Calculator,      label: "Claim",          group: "legal" },
   RecoveryOutlook:{ icon: Target,          label: "Recovery",       group: "legal" },
+  Ledger:         { icon: ScrollText,      label: "Ledger",         group: "legal" },
 };
 
 /** Show this subset in the rail by default — keep it tight. */
@@ -38,6 +39,7 @@ const RAIL_ORDER: PanelType[] = [
   "Subpoenas",
   "ClaimValue",
   "RecoveryOutlook",
+  "Ledger",
 ];
 
 function hex(h: string, alpha = 1): string {
@@ -50,7 +52,7 @@ function hex(h: string, alpha = 1): string {
 export function NavRail() {
   const brand = getBrand();
   const config = getConfig();
-  const { openPanel, isPanelVisible, getVisiblePanelTypes } = useLayout();
+  const { openPanel, getVisiblePanelTypes } = useLayout();
 
   const registered = new Set(config.panels ?? []);
   const items = RAIL_ORDER.filter((pt) => registered.has(pt));
@@ -102,7 +104,7 @@ export function NavRail() {
                     aria-label={meta.label}
                     aria-pressed={isActive}
                   >
-                    <Icon className="h-4 w-4" style={{ color: "#fff" }} />
+                    <Icon className="h-4 w-4 text-white" />
                     <span
                       className="text-[9px] font-semibold leading-none"
                       style={{ color: "#fff" }}

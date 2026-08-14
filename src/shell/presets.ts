@@ -26,6 +26,7 @@ export function getClassicLayout(): WorkspaceLayout {
           createTab("doc-browser", "DocBrowser", "Evidence"),
           createTab("item-table", "ItemTable", vocab.itemPlural),
           createTab("reading-pane", "ReadingPane", "Reading Pane"),
+          createTab("ledger", "Ledger", "Ledger"),
         ]),
         createLeaf("chat", [createTab("chat-rail", "ChatRail", "Ask")]),
       ], [68, 32]),
