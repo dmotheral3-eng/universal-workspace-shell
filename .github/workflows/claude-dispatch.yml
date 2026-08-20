@@ -75,8 +75,12 @@ jobs:
           # For any gh CLI Claude runs; git push uses the checkout-persisted credential.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # Auth via the repo secret ANTHROPIC_API_KEY.
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # AUTH (2026-08-16, Dave: "run off my licenses"): prefer the subscription OAuth token
+          # (claude setup-token -> repo secret CLAUDE_CODE_OAUTH_TOKEN) when present; otherwise fall
+          # back to the API key. Never both live at once - a static credential set beside another
+          # wins silently, so the api key line is blanked whenever the OAuth secret exists.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN == '' && secrets.ANTHROPIC_API_KEY || '' }}
           base_branch: ${{ inputs.base_branch }}
           # Headless trusted runner: grant Claude its tools. The action's default sandbox
           # denies Bash/git/Write (permission_denials), which is why prior runs pushed nothing.
