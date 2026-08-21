@@ -25,7 +25,7 @@ afterEach(() => {
 describe("profile selection", () => {
   it("serves the lending surface on lending-app", async () => {
     const c = await configFor("lending-app");
-    expect(c.brand.name).toBe("Centripetal Lending");
+    expect(c.brand.name).toBe("BorrowWorks");
     expect(c.vocabulary.entity).toBe("Book");
     expect(c.vocabulary.entityPlural).toBe("Books");
     expect(c.data.mode).toBe("cube-broker");
