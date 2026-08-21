@@ -6,8 +6,8 @@
  * without a running platform (server/broker/handler.test.ts).
  */
 
-import { readBrokerEnv, BrokerConfigError } from "../../server/broker/env";
-import { handleCubeRequest } from "../../server/broker/handler";
+import { readBrokerEnv, BrokerConfigError } from "../../server/broker/env.js";
+import { handleCubeRequest } from "../../server/broker/handler.js";
 
 export const config = { runtime: "nodejs" };
 
