@@ -21,7 +21,13 @@
 
 import type { BrokerEnv } from "./env";
 import { lookupResource, type BrokerResource } from "./resources";
-import { isEntitled, resolveTenant, verifyMasterSession, type FetchLike } from "./identity";
+import {
+  entitledBookSlugs,
+  isEntitled,
+  resolveTenant,
+  verifyMasterSession,
+  type FetchLike,
+} from "./identity";
 
 export interface BrokerRequest {
   method: string;
@@ -83,14 +89,28 @@ function bearerFrom(headers: { get(name: string): string | null }): string | nul
  * fold in only the allowlisted filters. The caller's query string is read for
  * *values*; it never contributes a key, a column, or an operator.
  */
+export interface BookFilter {
+  column: string;
+  values: string[];
+}
+
 export function buildCubeQuery(
   resource: BrokerResource,
   tenantId: string,
-  callerParams: URLSearchParams
+  callerParams: URLSearchParams,
+  bookFilter?: BookFilter | null
 ): URLSearchParams | { error: string } {
   const params = new URLSearchParams();
   params.set("select", resource.columns.join(","));
   params.set(resource.tenantColumn, `eq.${tenantId}`);
+
+  // The book gate, when the resource declares one. Server-derived: these values
+  // come from master's entitlement register, never from the query string.
+  if (bookFilter) {
+    if (bookFilter.values.length === 0) return { error: "not_entitled" };
+    if (!bookFilter.values.every((v) => SAFE_VALUE.test(v))) return { error: "bad_filter" };
+    params.set(bookFilter.column, `in.(${bookFilter.values.join(",")})`);
+  }
 
   for (const [name, column] of Object.entries(resource.filters)) {
     const value = callerParams.get(name);
@@ -148,8 +168,36 @@ export async function handleCubeRequest(
   // 6. Entitlements are per-resource. Absent means no, never "probably fine".
   if (!isEntitled(grant, resource.entitlement)) return refuse(403, "not_entitled");
 
-  const query = buildCubeQuery(resource, grant.tenantId, url.searchParams);
-  if ("error" in query) return refuse(400, query.error);
+  // 6b. THE BOOK GATE. A lending tenant can hold more than one book and access
+  //     is granted a book at a time, so the tenant filter alone would show a
+  //     caller books they were never given. Resolved from master, from the
+  //     email master itself verified — the caller supplies nothing here.
+  let bookFilter: BookFilter | null = null;
+  if (resource.bookScope) {
+    const slugs = await entitledBookSlugs(user, token, deps.env, deps.fetch);
+    if (slugs.length === 0) {
+      log(`no_book_entitlement resource=${name}`);
+      return refuse(403, "not_entitled");
+    }
+    if (resource.bookScope === "slug") {
+      bookFilter = { column: "slug", values: slugs };
+    } else {
+      const ids = await bookIdsForSlugs(slugs, grant.tenantId, deps);
+      // Entitled to books, but none of them in this tenant: same refusal as no
+      // entitlement at all. Saying which of the two it was would leak the
+      // existence of books in another tenant.
+      if (ids.length === 0) {
+        log(`no_book_in_tenant resource=${name}`);
+        return refuse(403, "not_entitled");
+      }
+      bookFilter = { column: "book_id", values: ids };
+    }
+  }
+
+  const query = buildCubeQuery(resource, grant.tenantId, url.searchParams, bookFilter);
+  if ("error" in query) {
+    return refuse(query.error === "not_entitled" ? 403 : 400, query.error);
+  }
 
   // 7. The one call that uses the Cube credential.
   const headers: Record<string, string> = {
@@ -197,4 +245,49 @@ export async function handleCubeRequest(
     body: { resource: name, tenant: grant.tenantId, rows: scoped },
     headers: JSON_HEADERS,
   };
+}
+
+/**
+ * The entitled slugs, turned into the book ids the evidence tables key on.
+ *
+ * Read through the Cube credential like any other brokered read, and scoped to
+ * the SAME tenant the caller resolved to — so a slug that exists in another
+ * tenant resolves to nothing here rather than to that tenant's book.
+ */
+async function bookIdsForSlugs(
+  slugs: string[],
+  tenantId: string,
+  deps: BrokerDeps
+): Promise<string[]> {
+  if (!slugs.every((s) => SAFE_VALUE.test(s))) return [];
+
+  const params = new URLSearchParams();
+  params.set("select", "id,slug,tenant_id");
+  params.set("tenant_id", `eq.${tenantId}`);
+  params.set("slug", `in.(${slugs.join(",")})`);
+  params.set("limit", "200");
+
+  let res: Response;
+  try {
+    res = await deps.fetch(`${deps.env.cubeUrl}/rest/v1/books?${params.toString()}`, {
+      headers: {
+        apikey: deps.env.cubeKey,
+        Authorization: `Bearer ${deps.env.cubeKey}`,
+        Accept: "application/json",
+        "Accept-Profile": "lending",
+      },
+    });
+  } catch {
+    return [];
+  }
+  if (!res.ok) return [];
+
+  const rows = (await res.json().catch(() => null)) as Array<Record<string, unknown>> | null;
+  if (!Array.isArray(rows)) return [];
+
+  // Re-check the tenant on the way out, exactly as the main read does.
+  return rows
+    .filter((r) => String(r.tenant_id) === tenantId)
+    .map((r) => r.id)
+    .filter((id): id is string => typeof id === "string");
 }

@@ -1,6 +1,6 @@
 import { useLayout } from "./layout-context";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { List, Table, FileText, MessageSquare, GitBranch, BarChart3, FolderOpen, LayoutDashboard, Grid3X3, Home, Users, Tag, PiggyBank, Gavel, Calculator, Target, ScrollText } from "lucide-react";
+import { List, Table, FileText, MessageSquare, GitBranch, BarChart3, FolderOpen, LayoutDashboard, Grid3X3, Home, Users, Tag, PiggyBank, Gavel, Calculator, Target, ScrollText, Library, Scale, PhoneCall, History, BadgeCheck } from "lucide-react";
 import type { PanelType } from "@/config/types";
 
 const panelIcons: Record<PanelType, React.ComponentType<{ className?: string }>> = {
@@ -21,6 +21,11 @@ const panelIcons: Record<PanelType, React.ComponentType<{ className?: string }>>
   ClaimValue: Calculator,
   RecoveryOutlook: Target,
   Ledger: ScrollText,
+  Books: Library,
+  Decisions: Scale,
+  Interactions: PhoneCall,
+  Changes: History,
+  Attestations: BadgeCheck,
 };
 
 export function CollapsedRail() {

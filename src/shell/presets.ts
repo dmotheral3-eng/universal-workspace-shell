@@ -152,6 +152,36 @@ export function getBrokerProofLayout(): WorkspaceLayout {
   };
 }
 
+/**
+ * LENDING — the book on the left, its evidence tabbed in the centre.
+ *
+ * Deliberately not in PRESET_NAMES, for the same reason BrokerProof is not:
+ * every other preset opens panels the lending profile has no data path for, and
+ * offering them would put "this panel is not available in this workspace" in
+ * front of someone as a menu item.
+ *
+ * The four evidence panels all wait on a book, so the Books list is the only
+ * thing on screen with anything to show until one is picked — which is why it
+ * gets its own column rather than a tab.
+ */
+export function getLendingClassicLayout(): WorkspaceLayout {
+  const vocab = v();
+  return {
+    root: createSplit("root", "horizontal", [
+      createLeaf("lending-left", [createTab("books", "Books", vocab.entityPlural)]),
+      createLeaf("lending-center", [
+        createTab("decisions", "Decisions", "Decisions"),
+        createTab("interactions", "Interactions", "Interactions"),
+        createTab("changes", "Changes", "Changes"),
+        createTab("attestations", "Attestations", "Attestations"),
+      ]),
+    ], [26, 74]),
+    panelStates: {},
+    collapsedPanels: [],
+    poppedOutPanels: [],
+  };
+}
+
 export function getPreset(name: string): WorkspaceLayout {
   switch (name) {
     case "Classic": return getClassicLayout();
@@ -160,6 +190,7 @@ export function getPreset(name: string): WorkspaceLayout {
     case "Ops": return getOpsLayout();
     case "Wall": return getWallLayout();
     case "BrokerProof": return getBrokerProofLayout();
+    case "LendingClassic": return getLendingClassicLayout();
     default: return getClassicLayout();
   }
 }

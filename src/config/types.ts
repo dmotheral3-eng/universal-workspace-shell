@@ -73,7 +73,14 @@ export type PanelType =
   | "ClaimValue"
   | "RecoveryOutlook"
   // the matter's three-actor record — who said, did, produced, refused (port of the Ledger Console)
-  | "Ledger";
+  | "Ledger"
+  // lending panels — brokered door only, registered per profile in *.config.json.
+  // The book is the entity; the four evidence panels narrow to the selected book.
+  | "Books"
+  | "Decisions"
+  | "Interactions"
+  | "Changes"
+  | "Attestations";
 
 export interface WorkspaceConfig {
   brand: BrandConfig;
