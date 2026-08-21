@@ -129,6 +129,50 @@ export function isEntitled(grant: TenantGrant, entitlement: string): boolean {
   return grant.entitlements.includes("*") || grant.entitlements.includes(entitlement);
 }
 
+/**
+ * Which BOOKS this caller may see, from master.
+ *
+ * The lending surface grants access one book at a time, so tenant scoping is
+ * not the whole answer — a tenant can hold several books. `fn_lending_entitlement`
+ * on master is the register of record and this is the only thing that reads it.
+ *
+ * IT IS CALLED WITH THE EMAIL MASTER JUST VERIFIED, NEVER WITH ONE FROM THE
+ * REQUEST. The function is SECURITY DEFINER and takes an email as an argument,
+ * so anything that let a caller choose that argument would let them enumerate
+ * somebody else's book access. The verified session is the only source of it
+ * here, and the broker has no parameter through which a client could supply one.
+ *
+ * This is a second ENTITLEMENT lookup, not a second auth path: identity is
+ * still established once, by `verifyMasterSession`, and this call rides the
+ * caller's own token.
+ */
+export async function entitledBookSlugs(
+  user: MasterUser,
+  token: string,
+  env: BrokerEnv,
+  fetchImpl: FetchLike
+): Promise<string[]> {
+  if (!user.email) return [];
+
+  const res = await fetch_(fetchImpl, `${env.masterUrl}/rest/v1/rpc/fn_lending_entitlement`, {
+    method: "POST",
+    headers: {
+      apikey: env.masterAnonKey,
+      Authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ p_email: user.email }),
+  });
+  if (!res || !res.ok) return [];
+
+  const json = (await res.json().catch(() => null)) as { books?: unknown } | null;
+  const books = json && Array.isArray(json.books) ? json.books : [];
+  return books
+    .map((b) => (b && typeof b === "object" ? (b as { book_slug?: unknown }).book_slug : null))
+    .filter((s): s is string => typeof s === "string" && s !== "");
+}
+
 /** Upstream that is down must read as "not authenticated / not resolved", never as a crash. */
 async function fetch_(
   fetchImpl: FetchLike,

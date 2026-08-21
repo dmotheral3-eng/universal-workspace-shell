@@ -4,10 +4,11 @@ import {
   List, Home, Table, FileText, MessageSquare, GitBranch,
   BarChart3, FolderOpen, LayoutDashboard, Grid3X3,
   Users, Tag, PiggyBank, Gavel, Calculator, Target, ScrollText,
+  Library, Scale, PhoneCall, History, BadgeCheck,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ className?: string }>; label: string; group: "core" | "legal" | "chat" }> = {
+const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ className?: string }>; label: string; group: "core" | "legal" | "lending" | "chat" }> = {
   EntityList:     { icon: List,            label: "Matters",        group: "core" },
   MatterHome:     { icon: Home,            label: "Matter",         group: "core" },
   ItemTable:      { icon: Table,           label: "Timeline",       group: "core" },
@@ -25,6 +26,11 @@ const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ className?: st
   ClaimValue:     { icon: Calculator,      label: "Claim",          group: "legal" },
   RecoveryOutlook:{ icon: Target,          label: "Recovery",       group: "legal" },
   Ledger:         { icon: ScrollText,      label: "Ledger",         group: "legal" },
+  Books:          { icon: Library,          label: "Books",          group: "lending" },
+  Decisions:      { icon: Scale,            label: "Decisions",      group: "lending" },
+  Interactions:   { icon: PhoneCall,        label: "Interactions",   group: "lending" },
+  Changes:        { icon: History,          label: "Changes",        group: "lending" },
+  Attestations:   { icon: BadgeCheck,       label: "Attestations",   group: "lending" },
 };
 
 /** Show this subset in the rail by default — keep it tight. */
@@ -40,6 +46,11 @@ const RAIL_ORDER: PanelType[] = [
   "ClaimValue",
   "RecoveryOutlook",
   "Ledger",
+  "Books",
+  "Decisions",
+  "Interactions",
+  "Changes",
+  "Attestations",
 ];
 
 function hex(h: string, alpha = 1): string {

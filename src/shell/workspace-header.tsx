@@ -48,6 +48,11 @@ function panelLabel(panelType: PanelType): string {
     case "ClaimValue": return "Claim value";
     case "RecoveryOutlook": return "Recovery outlook";
     case "Ledger": return "Ledger";
+    case "Books": return vocab.entityPlural;
+    case "Decisions": return "Decisions";
+    case "Interactions": return "Interactions";
+    case "Changes": return "Changes";
+    case "Attestations": return "Attestations";
   }
 }
 
