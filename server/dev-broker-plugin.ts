@@ -9,8 +9,8 @@
  */
 
 import type { Plugin } from "vite";
-import { readBrokerEnv } from "./broker/env";
-import { handleCubeRequest } from "./broker/handler";
+import { readBrokerEnv } from "./broker/env.js";
+import { handleCubeRequest } from "./broker/handler.js";
 
 export function devBrokerPlugin(): Plugin {
   return {
