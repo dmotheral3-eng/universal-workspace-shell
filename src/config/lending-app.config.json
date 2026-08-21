@@ -1,0 +1,44 @@
+{
+  "brand": {
+    "name": "BorrowWorks",
+    "logoText": "BorrowWorks",
+    "accent": "#1B3A63",
+    "background": "#FFFFFF",
+    "mode": "light"
+  },
+  "vocabulary": {
+    "entity": "Book",
+    "entityPlural": "Books",
+    "item": "Evidence Record",
+    "itemPlural": "Evidence"
+  },
+  "panels": [
+    "EntityList",
+    "MatterHome",
+    "ItemTable",
+    "ReadingPane",
+    "ChatRail",
+    "MetricGrid",
+    "DocBrowser",
+    "Ledger"
+  ],
+  "defaultLayout": "Classic",
+  "chat": {
+    "suggestedQuestions": [
+      "What does this cost?",
+      "Who changed the risk tier rule?",
+      "Pull the calls that mentioned fees",
+      "Is any vendor attestation expired?"
+    ]
+  },
+  "data": {
+    "mode": "cube-broker",
+    "broker": {}
+  },
+  "auth": {
+    "url": "SET_VITE_MASTER_URL",
+    "anonKey": "SET_VITE_MASTER_ANON_KEY",
+    "storageKey": "borrowworks.master.session",
+    "label": "BorrowWorks sign-in"
+  }
+}
