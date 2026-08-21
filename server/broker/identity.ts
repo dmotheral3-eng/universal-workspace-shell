@@ -12,7 +12,7 @@
  * for it. Least privilege, and one less key for a human to hold.
  */
 
-import type { BrokerEnv } from "./env";
+import type { BrokerEnv } from "./env.js";
 
 export type FetchLike = typeof fetch;
 
