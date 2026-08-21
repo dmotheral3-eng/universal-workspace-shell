@@ -2,6 +2,7 @@ import type { AuthConfig, WorkspaceConfig } from "./types";
 import lawdogJson from "./lawdog.config.json";
 import workspaceJson from "./workspace.config.json";
 import cubeJson from "./cube.config.json";
+import lendingAppJson from "./lending-app.config.json";
 
 export type { WorkspaceConfig, BrandConfig, VocabularyConfig, AuthConfig, PanelType } from "./types";
 
@@ -10,6 +11,8 @@ function pickProfile(profile: string | undefined): WorkspaceConfig {
     case "lawdog":
       return lawdogJson as WorkspaceConfig;
     // Cube-backed surfaces: master is the door, /api/cube/* is the data path.
+    case "lending-app":
+      return lendingAppJson as WorkspaceConfig;
     case "cube":
       return cubeJson as WorkspaceConfig;
     default:
