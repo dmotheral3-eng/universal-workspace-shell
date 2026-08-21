@@ -19,15 +19,15 @@
  * nothing more (P#183 — the server shields everything).
  */
 
-import type { BrokerEnv } from "./env";
-import { lookupResource, type BrokerResource } from "./resources";
+import type { BrokerEnv } from "./env.js";
+import { lookupResource, type BrokerResource } from "./resources.js";
 import {
   entitledBookSlugs,
   isEntitled,
   resolveTenant,
   verifyMasterSession,
   type FetchLike,
-} from "./identity";
+} from "./identity.js";
 
 export interface BrokerRequest {
   method: string;
