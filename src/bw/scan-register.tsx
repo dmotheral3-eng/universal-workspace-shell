@@ -40,22 +40,33 @@ export function ScanRegister({
   rows,
   bookLabel,
   onOpen,
+  /**
+   * The heading tag to render the title as. Defaults to h1, which is right when
+   * this IS the page — the operator desk is unchanged by this prop existing.
+   *
+   * It exists because the register is now embedded elsewhere as a specimen, and
+   * a page carrying three h1 elements has no document outline. The alternative
+   * was a second copy of the register that drifts from this one, which is worse
+   * than a prop.
+   */
+  headingAs: Heading = "h1",
 }: {
   rows: ScanRow[];
   bookLabel: string;
   onOpen: (row: ScanRow) => void;
+  headingAs?: "h1" | "h2" | "h3";
 }) {
   const exceptions = rows.filter((r) => r.flagged).length;
 
   return (
     <div>
       <div className="mb-4">
-        <h1
+        <Heading
           className="text-2xl"
           style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}
         >
           Interactions
-        </h1>
+        </Heading>
         <p className="mt-1 text-sm" style={{ color: "var(--body)" }}>
           Every monitored contact on {bookLabel}, scored against the policy in force that
           day.{" "}
