@@ -34,6 +34,12 @@ export interface BrokerRequest {
   /** Full request URL, e.g. https://app.example/api/cube/rate_card?limit=50 */
   url: string;
   headers: { get(name: string): string | null };
+  /**
+   * The parsed JSON body, present only on the single POST this surface allows.
+   * Optional so every read caller — and every existing test — constructs a
+   * request exactly as it did before.
+   */
+  json?: () => Promise<unknown>;
 }
 
 export interface BrokerResponse {
@@ -134,9 +140,19 @@ export async function handleCubeRequest(
 ): Promise<BrokerResponse> {
   const log = deps.log ?? (() => undefined);
 
-  // 1. Reads only. The broker is not a write path, and a write path would need
-  //    its own ruling about who may mutate a tenant's rows.
-  if (req.method.toUpperCase() !== "GET") {
+  // 1. Reads, and exactly ONE write.
+  //
+  //    This used to be reads-only, with the note that "a write path would need
+  //    its own ruling about who may mutate a tenant's rows." D-BWUI-1 is that
+  //    ruling, and it is deliberately the narrowest one that can exist: a single
+  //    resource, append-only, where the caller supplies a verdict and a reason
+  //    and NOTHING else. Identity, tenant and the book gate are all re-derived
+  //    server-side exactly as they are for a read — see handleDecisionWrite.
+  const method = req.method.toUpperCase();
+  if (method === "POST") {
+    return handleDecisionWrite(req, deps);
+  }
+  if (method !== "GET") {
     return refuse(405, "method_not_allowed");
   }
 
@@ -290,4 +306,129 @@ async function bookIdsForSlugs(
     .filter((r) => String(r.tenant_id) === tenantId)
     .map((r) => r.id)
     .filter((id): id is string => typeof id === "string");
+}
+
+/* ------------------------------------------------------------------ write ---
+ * THE ONLY WRITE ON THIS SURFACE.
+ *
+ * A review screen whose Confirm button produces no row is a picture of a control,
+ * not the control. So the action register records what a human decided — and to
+ * stay a control rather than a hole, this path re-runs every gate the read path
+ * runs and takes as little from the caller as it possibly can.
+ *
+ * The caller supplies: which exception, which verdict, why, and the rule version
+ * they were shown. The caller does NOT supply: who they are, which tenant they
+ * are in, or whether they may touch that book. Those are re-derived here from the
+ * session master verified, which is the difference between an audited decision
+ * and an assertion.
+ */
+export async function handleDecisionWrite(
+  req: BrokerRequest,
+  deps: BrokerDeps
+): Promise<BrokerResponse> {
+  const log = deps.log ?? (() => undefined);
+  const url = new URL(req.url);
+
+  // Exactly one resource may be written, whatever the path says.
+  const name = resourceNameFromPath(url.pathname);
+  if (name !== "lending_decision_log") return refuse(404, "unknown_resource");
+  const resource = lookupResource(name);
+  if (!resource) return refuse(404, "unknown_resource");
+
+  const token = bearerFrom(req.headers);
+  if (!token) return refuse(401, "not_authenticated");
+
+  const user = await verifyMasterSession(token, deps.env, deps.fetch);
+  if (!user) return refuse(401, "not_authenticated");
+
+  const requestedTenant = req.headers.get("x-tenant-id") ?? req.headers.get("X-Tenant-Id");
+  const resolution = await resolveTenant(user, token, requestedTenant, deps.env, deps.fetch);
+  if (!resolution.ok) {
+    return refuse(403, resolution.reason === "ambiguous" ? "tenant_ambiguous" : "tenant_unresolved");
+  }
+  const { grant } = resolution;
+  if (!isEntitled(grant, resource.entitlement)) return refuse(403, "not_entitled");
+
+  if (typeof req.json !== "function") return refuse(400, "bad_body");
+  let body: Record<string, unknown>;
+  try {
+    body = ((await req.json()) ?? {}) as Record<string, unknown>;
+  } catch {
+    return refuse(400, "bad_body");
+  }
+
+  const bookId = typeof body.book_id === "string" ? body.book_id : "";
+  const subjectKind = typeof body.subject_kind === "string" ? body.subject_kind : "";
+  const subjectRef = typeof body.subject_ref === "string" ? body.subject_ref : "";
+  const action = body.action === "confirmed" || body.action === "waived" ? body.action : "";
+  const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+  const ruleVersion = typeof body.rule_version === "string" ? body.rule_version : "";
+
+  // A blank reason is the exact thing this record exists to prevent, so it is
+  // refused here as well as by the column constraint.
+  if (!bookId || !subjectKind || !subjectRef || !action || !ruleVersion) return refuse(400, "bad_body");
+  if (reason.length < 8) return refuse(400, "reason_required");
+
+  // THE BOOK GATE, re-run. The caller named a book; that name is only a request.
+  const slugs = await entitledBookSlugs(user, token, deps.env, deps.fetch);
+  if (slugs.length === 0) return refuse(403, "not_entitled");
+  const ids = await bookIdsForSlugs(slugs, grant.tenantId, deps);
+  if (!ids.includes(bookId)) {
+    log(`decision_write_book_denied resource=${name}`);
+    return refuse(403, "not_entitled");
+  }
+
+  // Identity and tenant are SERVER facts. Anything the caller sent for these is
+  // ignored rather than merged.
+  const row = {
+    tenant_id: grant.tenantId,
+    book_id: bookId,
+    subject_kind: subjectKind,
+    subject_ref: subjectRef,
+    action,
+    reason,
+    rule_version: ruleVersion,
+    decided_by: user.email ?? user.id ?? "unknown",
+  };
+
+  const headers: Record<string, string> = {
+    apikey: deps.env.cubeKey,
+    Authorization: `Bearer ${deps.env.cubeKey}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    Prefer: "return=representation",
+  };
+  const schema = resource.schema ?? deps.env.cubeSchema;
+  if (schema) {
+    headers["Content-Profile"] = schema;
+    headers["Accept-Profile"] = schema;
+  }
+
+  let res: Response;
+  try {
+    res = await deps.fetch(`${deps.env.cubeUrl}/rest/v1/${resource.table}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(row),
+    });
+  } catch {
+    return refuse(502, "upstream_unreachable");
+  }
+  if (!res.ok) {
+    log(`decision_write_upstream status=${res.status}`);
+    return refuse(502, "upstream_error");
+  }
+
+  const rows = (await res.json().catch(() => null)) as Record<string, unknown>[] | null;
+  const written = Array.isArray(rows) && rows[0] ? rows[0] : null;
+  if (!written) return refuse(502, "upstream_error");
+
+  // Re-check the row we got back, the same way reads are re-checked: a row that
+  // came back under another tenant is a bug, and it is not returned.
+  if (written.tenant_id !== grant.tenantId) {
+    log("decision_write_tenant_mismatch");
+    return refuse(502, "upstream_error");
+  }
+
+  return { status: 201, body: { row: written }, headers: JSON_HEADERS };
 }

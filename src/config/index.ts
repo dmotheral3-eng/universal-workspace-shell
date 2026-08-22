@@ -3,6 +3,7 @@ import lawdogJson from "./lawdog.config.json";
 import workspaceJson from "./workspace.config.json";
 import cubeJson from "./cube.config.json";
 import lendingJson from "./lending-app.config.json";
+import borrowworksJson from "./borrowworks.config.json";
 
 export type { WorkspaceConfig, BrandConfig, VocabularyConfig, AuthConfig, PanelType } from "./types";
 
@@ -18,6 +19,11 @@ function pickProfile(profile: string | undefined): WorkspaceConfig {
     // serves exactly one of these — see .env.example.
     case "lending-app":
       return lendingJson as WorkspaceConfig;
+    // The BorrowWorks operator desk. Same door and same data path as `lending-app`;
+    // a separate profile because it renders the two-register surface rather than
+    // the panel workspace, and VITE_PROFILE is inlined at build time.
+    case "borrowworks":
+      return borrowworksJson as WorkspaceConfig;
     default:
       return workspaceJson as WorkspaceConfig;
   }

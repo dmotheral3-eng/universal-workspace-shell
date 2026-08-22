@@ -1,0 +1,107 @@
+/**
+ * COPIED VERBATIM from hwm-centripetal-app src/styles/tokens.css on 2026-08-22 by
+ * D-BWUI-1, on Dave's word "i want it all to look more like wealth style wise".
+ * This is the SAME decision as the wealth product, not a lookalike: the file is
+ * duplicated rather than reinterpreted so the two surfaces cannot drift into two
+ * palettes. If a token changes there, it changes here — and nowhere else.
+ *
+ * The doctrine below is the original file's and holds here without amendment.
+ */
+/**
+ * THE TOKEN SOURCE — one file, every colour and type decision in the product.
+ *
+ * Extracted from public/for-advisors.html, which is the agreed design and the
+ * canonical reference: a LIGHT page with DARK NAVY panes wrapped around dense
+ * numeric blocks, sage and gold as the only accents, and green/red reserved for
+ * deltas. Nothing else in `src/` may name a colour. A component that needs a
+ * shade it cannot find here needs a token added here, not a hex typed inline.
+ *
+ * Two forms of every colour ship, and both are load-bearing:
+ *
+ *   --x       the hex, for plain CSS and for anything read at runtime
+ *             (see src/lib/tokens.ts, which the charts use)
+ *   --x-rgb   the same colour as space-separated channels
+ *
+ * The channel form exists so Tailwind can compose opacity against these
+ * tokens: `rgb(var(--page-rgb) / <alpha-value>)` in the theme keeps utilities
+ * like `bg-page/95` and `bg-ink/40` working. A theme mapped straight at
+ * `var(--page)` silently drops every `/opacity` modifier already in the app,
+ * which is a whole class of invisible regressions.
+ *
+ * The two forms are written next to each other on purpose: they are one
+ * decision, and splitting them across files is how they drift apart.
+ */
+
+:root {
+  /* ---- surfaces: the page is light, and stays light ---- */
+  --page: #ffffff;
+  --page-rgb: 255 255 255;
+  --page2: #f6f7f9;
+  --page2-rgb: 246 247 249;
+  --line: #e4e7ec;
+  --line-rgb: 228 231 236;
+
+  /* ---- the navy pane: the signature element, used for dense numbers ---- */
+  --navy: #0e1726;
+  --navy-rgb: 14 23 38;
+  --navypane: #111b2c;
+  --navypane-rgb: 17 27 44;
+  --navyline: #26334a;
+  --navyline-rgb: 38 51 74;
+
+  /* ---- type on light ---- */
+  --ink: #0e1726;
+  --ink-rgb: 14 23 38;
+  --body: #4a5568;
+  --body-rgb: 74 85 104;
+  --faint: #8a94a6;
+  --faint-rgb: 138 148 166;
+
+  /* ---- type on the navy pane ---- */
+  --oninv: #e8edf5;
+  --oninv-rgb: 232 237 245;
+  --oninvmute: #8fa0b8;
+  --oninvmute-rgb: 143 160 184;
+
+  /* ---- the only two accents ---- */
+  --sage: #6b8e5a;
+  --sage-rgb: 107 142 90;
+  --gold: #b89149;
+  --gold-rgb: 184 145 73;
+
+  /* ---- movement, and nothing else ---- */
+  --up: #16a34a;
+  --up-rgb: 22 163 74;
+  --down: #dc2626;
+  --down-rgb: 220 38 38;
+
+  /*
+   * Derived shades. These are not new decisions — each one is an accent at a
+   * fixed distance from the page or the pane, kept here so a component never
+   * invents its own tint of sage.
+   */
+  --sage-soft: #f1f5ed;
+  --sage-soft-rgb: 241 245 237;
+  --sage-deep: #557349;
+  --sage-deep-rgb: 85 115 73;
+  --gold-soft: #faf3e1;
+  --gold-soft-rgb: 250 243 225;
+  --gold-deep: #9a7838;
+  --gold-deep-rgb: 154 120 56;
+
+  /* On the pane, deltas need to survive a dark background. */
+  --up-oninv: #4ade80;
+  --up-oninv-rgb: 74 222 128;
+  --down-oninv: #f87171;
+  --down-oninv-rgb: 248 113 113;
+
+  /* ---- type ---- */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+
+  /* ---- radii: 4–10px, per the reference ---- */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+}

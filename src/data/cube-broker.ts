@@ -81,3 +81,79 @@ export async function listRateCardViaBroker(): Promise<LdRate[]> {
 export function isBrokerMode(): boolean {
   return getConfig().data.mode === "cube-broker";
 }
+
+/**
+ * THE ONE WRITE ON THIS SURFACE — recording a human decision on an exception.
+ *
+ * Everything above this line is a read allowlist. This is deliberately the only
+ * exception to that, and it is narrow on purpose: it names ONE resource, it can
+ * only ever append, and it sends no book, tenant, table or column the server
+ * does not re-derive and re-check for itself. The caller cannot choose what to
+ * write against — it can only say "this subject, this verdict, this reason".
+ *
+ * Why a write exists here at all: a review surface whose Confirm button does not
+ * produce a row is a demonstration of a control rather than the control itself.
+ * The data on this surface is fictional; the record of who decided what, why,
+ * and against which rule version is real.
+ */
+export async function postDecision(input: {
+  bookId: string;
+  subjectKind: string;
+  subjectRef: string;
+  action: "confirmed" | "waived";
+  reason: string;
+  ruleVersion: string;
+}): Promise<{
+  id: string;
+  subjectRef: string;
+  action: "confirmed" | "waived";
+  reason: string;
+  ruleVersion: string;
+  decidedBy: string;
+  decidedAt: string;
+}> {
+  const token = await getAccessToken();
+  if (!token) throw new BrokerError("not_authenticated");
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  const pinned = getConfig().data.broker?.tenantId;
+  if (pinned) headers["X-Tenant-Id"] = pinned;
+
+  const res = await fetch("/api/cube/lending_decision_log", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      book_id: input.bookId,
+      subject_kind: input.subjectKind,
+      subject_ref: input.subjectRef,
+      action: input.action,
+      reason: input.reason,
+      rule_version: input.ruleVersion,
+    }),
+  });
+
+  const json = (await res.json().catch(() => null)) as
+    | { row?: Record<string, unknown> }
+    | { error?: string }
+    | null;
+
+  if (!res.ok) {
+    const code = json && "error" in json && json.error ? json.error : `http_${res.status}`;
+    throw new BrokerError(String(code));
+  }
+  const row = json && "row" in json && json.row ? json.row : null;
+  if (!row) throw new BrokerError("bad_payload");
+
+  return {
+    id: String(row.id ?? ""),
+    subjectRef: String(row.subject_ref ?? ""),
+    action: (row.action === "waived" ? "waived" : "confirmed") as "confirmed" | "waived",
+    reason: String(row.reason ?? ""),
+    ruleVersion: String(row.rule_version ?? ""),
+    decidedBy: String(row.decided_by ?? ""),
+    decidedAt: String(row.decided_at ?? ""),
+  };
+}
