@@ -31,3 +31,4 @@ dist-bundle-test
 
 # Proof build output — scripts/ldux2-proof.sh
 dist-proof
+dist-lending

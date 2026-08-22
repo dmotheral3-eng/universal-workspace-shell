@@ -1,0 +1,57 @@
+# Centripetal
+
+> Centripetal builds a client-owned evidence layer for consumer lending. It is a
+> system of record that sits beside the systems a lender already runs and captures
+> every monitored interaction and every decision as rows in a database the lender
+> owns. Regulatory filings, exam responses, complaint responses, control dashboards
+> and production sets are rendered from those rows on demand rather than assembled
+> by hand. It does not originate, service, price or decide; it proves what the
+> systems that do those things actually did, in a form an outsider can check.
+
+## What it is
+
+A record layer, not a reporting tool. The distinction matters: a reporting tool
+assembles an answer when someone asks, and the quality of the answer depends on
+who assembled it and how much time they had. A record layer already holds the
+answer, because the rows were written as the work happened.
+
+## Where the data lives
+
+In the lender's own database, under the lender's credentials and retention
+policy. This is the load-bearing property of the product and not a promise about
+conduct: if the vendor disappeared, the rows would still be there and still be
+readable.
+
+## What it covers
+
+- Monitored interactions, scored against the policy version in force on the day
+  of the contact — every contact, not a sample, so absence can be proven rather
+  than assumed.
+- Decisions, with the model version that scored them and any human review
+  recorded as its own row: upheld or overturned, named and timed.
+- Rule changes, promoted through a gate that records what it refused and why.
+- State regulatory filings, as template rows carrying a form reference, a due
+  rule and a location scope, so adding a jurisdiction is a row rather than a
+  release.
+- Obligations and their clocks, so a response window is visible while it can
+  still be met.
+- Production and discovery sets that reproduce byte for byte on re-run.
+
+## What it is not
+
+It does not originate loans, service them, price them, dial anyone, or decide
+who is approved. It has no opinion about credit. It is deliberately adjacent to
+the systems that do those things, and it is designed to leave them untouched —
+there is no migration and no cutover.
+
+## How it is sold
+
+An engagement fee to stand the record up in the client's infrastructure, then an
+annual subscription that scales with the number of lender books and licensed
+states carried. Filing templates for every licensed state are included; there is
+no per-filing charge. Specific numbers depend on the book and are discussed
+directly.
+
+## Contact
+
+hello@centripetal-ai.com
