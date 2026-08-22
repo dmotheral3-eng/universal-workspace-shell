@@ -24,7 +24,13 @@ export default async function handler(request: Request): Promise<Response> {
   }
 
   const result = await handleCubeRequest(
-    { method: request.method, url: request.url, headers: request.headers },
+    {
+      method: request.method,
+      url: request.url,
+      headers: request.headers,
+      // Only read for the single POST the broker allows; harmless on a GET.
+      json: () => request.json(),
+    },
     { env, fetch, log: (m) => console.error(`[cube-broker] ${m}`) }
   );
 

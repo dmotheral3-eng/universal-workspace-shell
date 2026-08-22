@@ -1,0 +1,32 @@
+[
+  {
+    "viewKey": "interactions",
+    "label": "Interactions",
+    "sortOrder": 10
+  },
+  {
+    "viewKey": "decisions",
+    "label": "Decisions",
+    "sortOrder": 20
+  },
+  {
+    "viewKey": "servicing",
+    "label": "Servicing",
+    "sortOrder": 25
+  },
+  {
+    "viewKey": "changes",
+    "label": "Rule changes",
+    "sortOrder": 30
+  },
+  {
+    "viewKey": "attestations",
+    "label": "Attestations",
+    "sortOrder": 40
+  },
+  {
+    "viewKey": "books",
+    "label": "Lender books",
+    "sortOrder": 50
+  }
+]

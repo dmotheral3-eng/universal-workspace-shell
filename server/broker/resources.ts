@@ -132,6 +132,43 @@ Object.assign(BROKER_RESOURCES, {
     maxLimit: 500,
     bookScope: "book_id",
   },
+  /**
+   * THE NAV, AS ROWS. The app refuses to hardcode its own list surfaces, so this
+   * resource is what makes "a new list is a registry row" true at runtime.
+   *
+   * It is tenant-scoped like everything else here, and that is not a formality:
+   * which surfaces a book's operator sees is a per-book fact, and the broker's
+   * own rule is that a resource with no honest tenant column does not belong on
+   * this surface. A nav is not an exception to that.
+   */
+  lending_view_registry: {
+    table: "view_registry",
+    schema: "lending",
+    tenantColumn: "tenant_id",
+    columns: ["id", "tenant_id", "view_key", "label", "resource", "sort_order", "active"],
+    entitlement: LENDING_ENTITLEMENT,
+    filters: {},
+    order: "sort_order.asc",
+    maxLimit: 100,
+  },
+  /**
+   * The decision record, READ side. The write side is not here: it is the single
+   * POST in ./handler, which is deliberately the only non-read on this surface.
+   */
+  lending_decision_log: {
+    table: "decision_log",
+    schema: "lending",
+    tenantColumn: "tenant_id",
+    columns: [
+      "id", "tenant_id", "book_id", "subject_kind", "subject_ref", "action",
+      "reason", "rule_version", "decided_by", "decided_at", "corrects_id",
+    ],
+    entitlement: LENDING_ENTITLEMENT,
+    filters: { book: "book_id", subject_ref: "subject_ref" },
+    order: "decided_at.desc",
+    maxLimit: 200,
+    bookScope: "book_id",
+  },
   lending_attestations: {
     table: "evidence_attestations",
     schema: "lending",

@@ -32,6 +32,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         proof: path.resolve(__dirname, "proof/proof.html"),
+        bwproof: path.resolve(__dirname, "proof/bw-proof.html"),
       },
     },
   },

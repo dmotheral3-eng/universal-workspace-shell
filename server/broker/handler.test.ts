@@ -195,15 +195,36 @@ describe("(a) an unauthenticated caller is refused", () => {
     expect(up.calls).toHaveLength(0);
   });
 
-  it("refuses writes — this surface is reads only", async () => {
+  it("refuses every write method except the one POST, and refuses POST everywhere but the decision log", async () => {
+    // This surface was reads-only until D-BWUI-1 ruled that the action register
+    // must record what a human decided. That ruling opened exactly ONE door, and
+    // this test is what keeps it one: PATCH/DELETE/PUT are still refused outright,
+    // and POST is a 404 on every resource that is not the decision log.
     const up = fakeUpstream(SIGNED_IN);
-    for (const method of ["POST", "PATCH", "DELETE", "PUT"]) {
+    for (const method of ["PATCH", "DELETE", "PUT"]) {
       const res = await handleCubeRequest(request("/api/cube/rate_card", AUTH_A, method), {
         env: ENV,
         fetch: up.fetch,
       });
       expect(res.status, method).toBe(405);
     }
+    for (const path of ["/api/cube/rate_card", "/api/cube/lending_books", "/api/cube/lending_interactions"]) {
+      const res = await handleCubeRequest(request(path, AUTH_A, "POST"), {
+        env: ENV,
+        fetch: up.fetch,
+      });
+      expect(res.status, `POST ${path}`).toBe(404);
+    }
+    expect(up.calls).toHaveLength(0);
+  });
+
+  it("refuses an unauthenticated write to the one resource that does accept writes", async () => {
+    const up = fakeUpstream(SIGNED_IN);
+    const res = await handleCubeRequest(
+      { method: "POST", url: "https://app.test/api/cube/lending_decision_log", headers: new Headers(), json: async () => ({}) },
+      { env: ENV, fetch: up.fetch }
+    );
+    expect(res.status).toBe(401);
     expect(up.calls).toHaveLength(0);
   });
 });

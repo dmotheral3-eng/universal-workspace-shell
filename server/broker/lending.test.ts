@@ -140,20 +140,31 @@ const ONE_BOOK: FakeOptions = {
 describe("every lending resource declares both gates", () => {
   const lending = Object.entries(BROKER_RESOURCES).filter(([k]) => k.startsWith("lending_"));
 
-  it("registers the five lending resources", () => {
+  it("registers the seven lending resources", () => {
     expect(lending.map(([k]) => k).sort()).toEqual([
       "lending_attestations",
       "lending_books",
       "lending_changes",
+      "lending_decision_log",
       "lending_decisions",
       "lending_interactions",
+      "lending_view_registry",
     ]);
   });
 
-  it("scopes every one of them by tenant AND by book", () => {
+  /**
+   * The nav registry is scoped by TENANT but not by book, and that is the honest
+   * shape rather than a gap: it carries no book column, because which surfaces an
+   * operator sees is a per-book-owner fact, not a per-book one. Every resource
+   * that holds EVIDENCE still carries both gates, and this test names the single
+   * exception explicitly so a future one cannot be added quietly.
+   */
+  const TENANT_ONLY = new Set(["lending_view_registry"]);
+
+  it("scopes every one of them by tenant, and every evidence resource by book too", () => {
     for (const [key, r] of lending) {
       expect(r.tenantColumn, key).toBe("tenant_id");
-      expect(r.bookScope, key).toBeTruthy();
+      if (!TENANT_ONLY.has(key)) expect(r.bookScope, key).toBeTruthy();
       expect(r.schema, key).toBe("lending");
       // No `*`: a column added upstream must be opted into here.
       expect(r.columns.includes("*"), key).toBe(false);
