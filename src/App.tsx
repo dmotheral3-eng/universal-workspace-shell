@@ -4,6 +4,7 @@ import { PopoutProvider } from "@/shell/popout-context";
 import { usePopoutManager } from "@/shell/popout-manager";
 import { LawDogGate } from "@/shell/lawdog-gate";
 import { NavRail } from "@/shell/nav-rail";
+import { PathPanelRoute } from "@/shell/path-route";
 import { getAuthConfig } from "@/config";
 import { BorrowWorksApp } from "@/bw/bw-app";
 
@@ -28,6 +29,7 @@ function AppInner() {
   return (
     <LawDogGate>
       <PopoutProvider openPopout={openPopout}>
+        <PathPanelRoute />
         <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
           <WorkspaceHeader />
           <div className="flex flex-1 overflow-hidden">

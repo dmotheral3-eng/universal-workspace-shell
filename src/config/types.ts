@@ -53,6 +53,9 @@ export interface DataConfig {
 }
 
 export type PanelType =
+  // the universal where-are-we ladder — every vertical, config-driven from
+  // public.whereweare_ladder on master. Not a per-client board (D-WHEREWEARE-1).
+  | "WhereWeAre"
   | "EntityList"
   // the explain-first landing screen for one entity — orientation, then cards,
   // then the dense numbers (D-LDUX-2)

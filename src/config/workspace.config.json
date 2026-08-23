@@ -12,7 +12,7 @@
     "item": "Encounter",
     "itemPlural": "Encounters"
   },
-  "panels": ["EntityList", "MatterHome", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard"],
+  "panels": ["WhereWeAre", "EntityList", "MatterHome", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard"],
   "defaultLayout": "Classic",
   "chat": {
     "suggestedQuestions": [

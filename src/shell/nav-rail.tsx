@@ -3,12 +3,13 @@ import { useLayout } from "./layout-context";
 import {
   List, Home, Table, FileText, MessageSquare, GitBranch,
   BarChart3, FolderOpen, LayoutDashboard, Grid3X3,
-  Users, Tag, PiggyBank, Gavel, Calculator, Target, ScrollText,
+  Users, Tag, PiggyBank, Gavel, Calculator, Target, ScrollText, Route,
   Library, Scale, PhoneCall, History, BadgeCheck,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ className?: string }>; label: string; group: "core" | "legal" | "lending" | "chat" }> = {
+  WhereWeAre:     { icon: Route,           label: "Where",          group: "core" },
   EntityList:     { icon: List,            label: "Matters",        group: "core" },
   MatterHome:     { icon: Home,            label: "Matter",         group: "core" },
   ItemTable:      { icon: Table,           label: "Timeline",       group: "core" },
@@ -35,6 +36,9 @@ const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ className?: st
 
 /** Show this subset in the rail by default — keep it tight. */
 const RAIL_ORDER: PanelType[] = [
+  // FIRST, deliberately: where-are-we is the question the shell should answer
+  // before any of the per-entity surfaces (D-WHEREWEARE-1).
+  "WhereWeAre",
   "EntityList",
   "MatterHome",
   "ItemTable",
