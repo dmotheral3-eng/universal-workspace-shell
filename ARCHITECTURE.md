@@ -160,3 +160,58 @@ door.
   same-origin path and holds no credential of its own.
 - `test/bundle-secrets.test.ts` — bundle grep, with the public anon key as the
   control that proves the grep is looking at real output.
+
+## The where-are-we ladder: `/api/whereweare`
+
+A second server route, built to the same shape as the Cube broker and for the same
+reason: the browser is told numbers, never told where they came from.
+
+```
+  browser (signed in through master, as everywhere else)
+    │  GET /api/whereweare  + the user's own bearer
+    ▼
+  SHELL   server/whereweare/handler.ts
+    │  ① GET only
+    │  ② bearer present — anonymous stops here, having contacted nothing
+    │  ③ master verifies the token (/auth/v1/user)
+    │  ④ ladder registry read from master WITH THE CALLER'S OWN TOKEN,
+    │     so master's RLS does the scoping and this route holds no master secret
+    │  ⑤ per-ladder source read with a server-only credential
+    ▼
+  COUNTS AND CLOCKS ONLY
+```
+
+**The ladder is data, not code.** `public.whereweare_ladder` on master holds one row
+per stage per vertical/client: the stage sequence, key, label and hint, the project
+ref and view that hold the truth, the column to count by, and — additively — the
+movement log and denominator metric to read. Registering a new vertical is an
+`INSERT`. Nothing in this repo names a stage, a client, or a project ref.
+
+**Attestation crosses the tenant wall; rows do not.** The response carries stage
+counts, a total, a `last_moved_at`, a stall age and a denominator. It carries no
+owner name, account number or amount. The source read asks for the stage column
+alone, so identifying columns are never even fetched — `server/whereweare/handler.test.ts`
+asserts both halves, using a fixture that really does carry owner names.
+
+**The stall clock is the point.** `last_moved_at` is the newest pulse sample whose
+*substantive* metrics differ from the sample before it. Keys beginning `mins_since`
+are excluded by name: they tick upward on every sample by construction, so counting
+them would report a pipeline that has not moved in sixteen hours as having moved
+seconds ago. That is the exact defect this route was built to end. A vertical with
+no pulse log gets `last_moved_at: null` and renders AMBER "no movement instrument" —
+never a fabricated timestamp.
+
+**A blank never passes for a fact.** A source with no configured credential returns
+`note: "no_source_credential"` and NULL counts, rendered RED — not zero. A vertical
+in `public.v_whereweare_scope` with no registered ladder renders RED as "no ladder
+registered". Missing capability is discovered by looking at the board.
+
+| Variable | What it is |
+| --- | --- |
+| `MASTER_URL` / `MASTER_ANON_KEY` | Already required by the Cube broker; reused, not duplicated. |
+| `WHEREWEARE_SOURCE_KEYS` | JSON `{"<project_ref>":"<key>"}`. Server-only. Absent is legal and renders RED; malformed is refused at boot rather than silently degrading to `{}`. |
+
+The board is registered on the **operator** profile only. It shows counts across
+verticals and clients, so putting it on a client-facing profile would place one
+tenant's pipeline in front of another's user — `src/config/profile.test.ts` pins the
+client profiles' panel sets and will fail if that is ever undone.
