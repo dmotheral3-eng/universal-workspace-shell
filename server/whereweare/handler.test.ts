@@ -118,6 +118,54 @@ describe("the stall clock", () => {
     expect(lastMovedAt([sample("2026-08-23T08:50:00Z", 140, 30)])).toBeNull();
   });
 
+
+  it("handles the REAL CW pulse shape, captured verbatim from the live log", () => {
+    // cwm_pipeline_pulse_log rows 1281 and 1280 on rmsafbcpzyxywekygevu, read
+    // 2026-08-23. Thirteen metrics, TWO of them mins_since age counters, and the
+    // age counter moves in the OPPOSITE direction to real progress (1138 -> 9).
+    const s1281: PulseSample = {
+      taken_at: "2026-08-23T08:50:00.153392Z",
+      metrics: [
+        { k: "docs_in_rom", n: 155 }, { k: "mins_since_new_doc", n: 28117 },
+        { k: "checks_parsed", n: 107 }, { k: "checks_staged", n: 141 },
+        { k: "staged_rows", n: 8510 }, { k: "mins_since_staging", n: 9 },
+        { k: "gate_allow", n: 47 }, { k: "chay_queue_new", n: 24 },
+        { k: "approved_awaiting_cdex", n: 0 }, { k: "sent_in_cdex", n: 49 },
+        { k: "hop_stage_to_portal_hrs", n: 9.2 }, { k: "hop_portal_to_approval_hrs", n: 369.4 },
+        { k: "entities_pulled_july", n: 13, t: "of 145 — the ceiling" },
+      ],
+    };
+    const s1280: PulseSample = {
+      taken_at: "2026-08-23T08:40:00.119534Z",
+      metrics: [
+        { k: "docs_in_rom", n: 155 }, { k: "mins_since_new_doc", n: 28107 },
+        { k: "checks_parsed", n: 107 }, { k: "checks_staged", n: 140 },
+        { k: "staged_rows", n: 8507 }, { k: "mins_since_staging", n: 1138 },
+        { k: "gate_allow", n: 46 }, { k: "chay_queue_new", n: 24 },
+        { k: "approved_awaiting_cdex", n: 0 }, { k: "sent_in_cdex", n: 49 },
+        { k: "hop_stage_to_portal_hrs", n: 9.2 }, { k: "hop_portal_to_approval_hrs", n: 369.4 },
+        { k: "entities_pulled_july", n: 13, t: "of 145 — the ceiling" },
+      ],
+    };
+
+    // checks_staged, staged_rows and gate_allow really moved: this is real movement.
+    expect(lastMovedAt([s1281, s1280])).toBe("2026-08-23T08:50:00.153392Z");
+
+    // Now the case that matters: freeze every substantive metric and let ONLY the
+    // two age counters tick. This is a dead pipeline, and it must read as dead.
+    const frozen: PulseSample = {
+      taken_at: "2026-08-23T09:00:00Z",
+      metrics: s1281.metrics.map((m) =>
+        m.k?.startsWith("mins_since") ? { ...m, n: (m.n ?? 0) + 10 } : m
+      ),
+    };
+    expect(lastMovedAt([frozen, s1281])).toBeNull();
+
+    // And the denominator really is 13 of 145 off that same live payload.
+    expect(denominatorFrom(s1281.metrics.find((m) => m.k === "entities_pulled_july")))
+      .toEqual({ reached: 13, of: 145, label: "of 145 — the ceiling" });
+  });
+
   it("is insensitive to metric ORDER, which the source does not promise", () => {
     const a: PulseSample = { taken_at: "2026-08-23T08:50:00Z", metrics: [{ k: "b", n: 2 }, { k: "a", n: 1 }] };
     const b: PulseSample = { taken_at: "2026-08-23T08:40:00Z", metrics: [{ k: "a", n: 1 }, { k: "b", n: 2 }] };
