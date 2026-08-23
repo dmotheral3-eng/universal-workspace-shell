@@ -12,6 +12,7 @@ import {
 } from "@/data/lawdog-auth";
 import { getAuthConfig, getConfig } from "@/config";
 import { trackDoorEvent } from "./door-analytics";
+import { NO_EMAIL_MESSAGE, isMissingEmailError } from "./door-email-claim";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,18 +30,6 @@ import { Lock, Loader2 } from "lucide-react";
  *
  * On a profile with no door it renders children untouched — the healthcare demo
  * on MockProvider must keep working with no login at all.
- */
-/**
- * A Microsoft tenant can hide the email claim from applications. When it does,
- * the sign-in itself SUCCEEDS — we get a valid session with an empty email —
- * and then every downstream answer is empty, because the entitlement register
- * on master is keyed by email (`fn_lending_entitlement`) and the broker returns
- * no books for an identity it cannot name (server/broker/identity.ts).
- *
- * That is the blank wall this screen exists to prevent. It is NOT a permissions
- * problem the person can fix by trying again, so the copy says what happened,
- * who can change it, and what to do meanwhile — and it offers a way back out
- * rather than stranding them in a signed-in session that can never show data.
  */
 /**
  * A dead end that reads as an explanation rather than as a failure. Same 320px
@@ -70,31 +59,6 @@ function DoorNotice({
       </div>
     </div>
   );
-}
-
-export const NO_EMAIL_MESSAGE =
-  "Your organisation hides your email address from apps, so we cannot match you to a seat. " +
-  "Ask your IT team to release the email claim for this sign-in, or use another account.";
-
-/**
- * GoTrue phrases this several ways, so match on PHRASES rather than on the bare
- * word "email" — "Invalid email or password" is a password failure and must not
- * be dressed up as a tenant policy problem. The first entry is the one GoTrue
- * actually returns for a withheld claim; the rest are the wordings seen around it.
- */
-const MISSING_EMAIL_PHRASES = [
-  "error getting user email",
-  "missing email",
-  "email not provided",
-  "not provided by",
-  "no email",
-  "without an email",
-  "email not found",
-];
-
-export function isMissingEmailError(message: string): boolean {
-  const m = message.toLowerCase();
-  return MISSING_EMAIL_PHRASES.some((p) => m.includes(p));
 }
 
 export function LawDogGate({ children }: { children: ReactNode }) {

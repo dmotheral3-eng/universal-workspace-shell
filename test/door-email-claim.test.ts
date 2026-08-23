@@ -11,7 +11,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { NO_EMAIL_MESSAGE, isMissingEmailError } from "@/shell/lawdog-gate";
+import { NO_EMAIL_MESSAGE, isMissingEmailError } from "../src/shell/door-email-claim";
 
 describe("missing email claim", () => {
   it("matches the wordings GoTrue actually returns", () => {
