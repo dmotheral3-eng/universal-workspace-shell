@@ -7,9 +7,12 @@ import {
   onAuthChange,
   signIn,
   signInWithProvider,
+  signOut,
   type LawDogSession,
 } from "@/data/lawdog-auth";
 import { getAuthConfig, getConfig } from "@/config";
+import { trackDoorEvent } from "./door-analytics";
+import { NO_EMAIL_MESSAGE, isMissingEmailError } from "./door-email-claim";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +31,36 @@ import { Lock, Loader2 } from "lucide-react";
  * On a profile with no door it renders children untouched — the healthcare demo
  * on MockProvider must keep working with no login at all.
  */
+/**
+ * A dead end that reads as an explanation rather than as a failure. Same 320px
+ * column and same visual weight as the sign-in card, so it does not look like a
+ * crash screen.
+ */
+function DoorNotice({
+  title,
+  message,
+  onBack,
+}: {
+  title: string;
+  message: string;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flex h-screen w-screen items-center justify-center bg-background">
+      <div className="w-[320px]">
+        <div className="mb-6 flex items-center gap-2">
+          <Lock className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">{title}</span>
+        </div>
+        <p className="text-xs leading-snug text-muted-foreground">{message}</p>
+        <Button variant="outline" className="mt-4 h-8 w-full text-xs" onClick={onBack}>
+          Try a different account
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function LawDogGate({ children }: { children: ReactNode }) {
   const config = getConfig();
   const auth = getAuthConfig();
@@ -73,6 +106,23 @@ export function LawDogGate({ children }: { children: ReactNode }) {
 
   if (!active) return <>{children}</>;
   if (!ready) return null;
+
+  // An emailless session is admitted by GoTrue and useless to us — see
+  // NO_EMAIL_MESSAGE. Refuse it here, politely, instead of letting the person
+  // land in an empty workspace and conclude the product is broken.
+  if (session && !session.email) {
+    return (
+      <DoorNotice
+        title={auth?.label ?? config.brand.name}
+        message={NO_EMAIL_MESSAGE}
+        onBack={() => {
+          void signOut();
+          setSession(null);
+        }}
+      />
+    );
+  }
+
   if (session) return <>{children}</>;
 
   const submit = async () => {
@@ -100,14 +150,20 @@ export function LawDogGate({ children }: { children: ReactNode }) {
           <Button
             variant="outline"
             className="h-8 w-full text-xs"
-            onClick={() => signInWithProvider("google")}
+            onClick={() => {
+              trackDoorEvent("door-provider-selected", { provider: "google" });
+              signInWithProvider("google");
+            }}
           >
             Continue with Google
           </Button>
           <Button
             variant="outline"
             className="h-8 w-full text-xs"
-            onClick={() => signInWithProvider("azure")}
+            onClick={() => {
+              trackDoorEvent("door-provider-selected", { provider: "azure" });
+              signInWithProvider("azure");
+            }}
           >
             Continue with Microsoft
           </Button>
@@ -148,7 +204,11 @@ export function LawDogGate({ children }: { children: ReactNode }) {
             />
           </div>
 
-          {error && <p className="text-xs text-destructive">{error}</p>}
+          {error && (
+            <p className="text-xs text-destructive">
+              {isMissingEmailError(error) ? NO_EMAIL_MESSAGE : error}
+            </p>
+          )}
 
           <Button onClick={submit} disabled={busy || !email || !password} className="h-8 w-full text-xs">
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Sign in"}
