@@ -4,12 +4,13 @@ import {
   List, Home, Table, FileText, MessageSquare, GitBranch,
   BarChart3, FolderOpen, LayoutDashboard, Grid3X3,
   Users, Tag, PiggyBank, Gavel, Calculator, Target, ScrollText, Route,
-  Library, Scale, PhoneCall, History, BadgeCheck,
+  Library, Scale, PhoneCall, History, BadgeCheck, Inbox,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ className?: string }>; label: string; group: "core" | "legal" | "lending" | "chat" }> = {
   WhereWeAre:     { icon: Route,           label: "Where",          group: "core" },
+  InboxBoard:     { icon: Inbox,           label: "Inbox",          group: "core" },
   EntityList:     { icon: List,            label: "Matters",        group: "core" },
   MatterHome:     { icon: Home,            label: "Matter",         group: "core" },
   ItemTable:      { icon: Table,           label: "Timeline",       group: "core" },

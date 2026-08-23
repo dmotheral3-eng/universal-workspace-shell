@@ -56,6 +56,9 @@ export type PanelType =
   // the universal where-are-we ladder — every vertical, config-driven from
   // public.whereweare_ladder on master. Not a per-client board (D-WHEREWEARE-1).
   | "WhereWeAre"
+  // the operator inbox — queue, parked work, master todo and the rail light in
+  // one read. Dave's own surface, not a client's (D-INBOX-1). Read-only by design.
+  | "InboxBoard"
   | "EntityList"
   // the explain-first landing screen for one entity — orientation, then cards,
   // then the dense numbers (D-LDUX-2)

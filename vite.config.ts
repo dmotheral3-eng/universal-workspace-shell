@@ -4,13 +4,14 @@ import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 import { devBrokerPlugin } from "./server/dev-broker-plugin"
 import { devWhereWeArePlugin } from "./server/dev-whereweare-plugin"
+import { devInboxPlugin } from "./server/dev-inbox-plugin"
 
 // https://vite.dev/config/
 export default defineConfig({
   // devBrokerPlugin is `apply: "serve"` — it mounts /api/cube/* on the dev
   // server only, so the broker can be exercised locally. Nothing from
   // server/ is ever part of a build; test/bundle-secrets.test.ts proves it.
-  plugins: [react(), tailwindcss(), devBrokerPlugin(), devWhereWeArePlugin()],
+  plugins: [react(), tailwindcss(), devBrokerPlugin(), devWhereWeArePlugin(), devInboxPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

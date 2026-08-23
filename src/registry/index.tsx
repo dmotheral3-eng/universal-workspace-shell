@@ -1,5 +1,6 @@
 import type { PanelType } from "@/config/types";
 import { WhereWeArePanel } from "@/panels/whereweare";
+import { InboxBoardPanel } from "@/panels/inbox/board";
 import { EntityListPanel } from "@/panels/entity-list";
 import { MatterHomePanel } from "@/panels/matter-home";
 import { ItemTablePanel } from "@/panels/item-table";
@@ -25,6 +26,7 @@ import { AttestationsPanel } from "@/panels/lending/attestations";
 
 const panelMap: Record<PanelType, React.ComponentType> = {
   WhereWeAre: WhereWeArePanel,
+  InboxBoard: InboxBoardPanel,
   EntityList: EntityListPanel,
   MatterHome: MatterHomePanel,
   ItemTable: ItemTablePanel,
