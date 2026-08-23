@@ -1,0 +1,31 @@
+{
+  "brand": {
+    "name": "Inbox",
+    "logoText": "Inbox",
+    "accent": "#1B3A63",
+    "background": "#FFFFFF",
+    "mode": "light"
+  },
+  "vocabulary": {
+    "entity": "Lane",
+    "entityPlural": "Lanes",
+    "item": "Dispatch",
+    "itemPlural": "Dispatches"
+  },
+  "panels": [
+    "InboxBoard"
+  ],
+  "defaultLayout": "SingleBoard",
+  "chat": {
+    "suggestedQuestions": []
+  },
+  "data": {
+    "mode": "supabase"
+  },
+  "auth": {
+    "url": "SET_VITE_MASTER_URL",
+    "anonKey": "SET_VITE_MASTER_ANON_KEY",
+    "storageKey": "inbox.master.session",
+    "label": "Operator sign-in"
+  }
+}

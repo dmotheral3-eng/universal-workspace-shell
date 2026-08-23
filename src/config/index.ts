@@ -4,6 +4,7 @@ import workspaceJson from "./workspace.config.json";
 import cubeJson from "./cube.config.json";
 import lendingJson from "./lending-app.config.json";
 import borrowworksJson from "./borrowworks.config.json";
+import inboxJson from "./inbox.config.json";
 
 export type { WorkspaceConfig, BrandConfig, VocabularyConfig, AuthConfig, PanelType } from "./types";
 
@@ -24,6 +25,12 @@ function pickProfile(profile: string | undefined): WorkspaceConfig {
     // the panel workspace, and VITE_PROFILE is inlined at build time.
     case "borrowworks":
       return borrowworksJson as WorkspaceConfig;
+    // Dave's own operator inbox. Master is the door; the data path is
+    // /api/inbox rather than the Cube broker, because every source it reads
+    // lives on master (D-INBOX-1). A separate profile because VITE_PROFILE is
+    // inlined at build time, so one deployment serves exactly one of these.
+    case "inbox":
+      return inboxJson as WorkspaceConfig;
     default:
       return workspaceJson as WorkspaceConfig;
   }

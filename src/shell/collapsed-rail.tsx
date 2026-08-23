@@ -1,10 +1,11 @@
 import { useLayout } from "./layout-context";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Route, List, Table, FileText, MessageSquare, GitBranch, BarChart3, FolderOpen, LayoutDashboard, Grid3X3, Home, Users, Tag, PiggyBank, Gavel, Calculator, Target, ScrollText, Library, Scale, PhoneCall, History, BadgeCheck } from "lucide-react";
+import { Inbox, Route, List, Table, FileText, MessageSquare, GitBranch, BarChart3, FolderOpen, LayoutDashboard, Grid3X3, Home, Users, Tag, PiggyBank, Gavel, Calculator, Target, ScrollText, Library, Scale, PhoneCall, History, BadgeCheck } from "lucide-react";
 import type { PanelType } from "@/config/types";
 
 const panelIcons: Record<PanelType, React.ComponentType<{ className?: string }>> = {
   WhereWeAre: Route,
+  InboxBoard: Inbox,
   EntityList: List,
   MatterHome: Home,
   ItemTable: Table,

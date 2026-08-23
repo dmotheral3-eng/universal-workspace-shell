@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { getSession, onAuthChange, signOut, type LawDogSession } from "@/data/lawdog-auth";
 
 const ALL_PANEL_TYPES: PanelType[] = [
-  "WhereWeAre", "EntityList", "MatterHome", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix",
+  "InboxBoard", "WhereWeAre", "EntityList", "MatterHome", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix",
   "Parties", "Rates", "Savings", "Subpoenas", "ClaimValue", "RecoveryOutlook",
 ];
 
@@ -31,6 +31,7 @@ function availablePanelTypes(): PanelType[] {
 function panelLabel(panelType: PanelType): string {
   const vocab = getConfig().vocabulary;
   switch (panelType) {
+    case "InboxBoard": return "Inbox";
     case "WhereWeAre": return "Where we are";
     case "EntityList": return vocab.entityPlural;
     case "MatterHome": return `${vocab.entity} home`;
