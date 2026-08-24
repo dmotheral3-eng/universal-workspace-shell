@@ -3,6 +3,7 @@ import { bus } from "@/bus";
 import { usePanelScope } from "@/shell/panel-scope";
 import { isBrokerMode } from "@/data/cube-broker";
 import { listBooks, type LendingBook } from "@/data/lending-broker";
+import { NO_BOOK_ACCESS_MESSAGE, isRefusalCode } from "@/shell/door-email-claim";
 import { LD, LdEmpty, LdNote, humanize } from "@/panels/legal/ld-kit";
 import { LdPanelFrame, type LdExplainCopy } from "@/panels/legal/ld-panel-frame";
 import type { LegalDataState } from "@/panels/legal/use-legal-data";
@@ -87,6 +88,12 @@ export function BooksPanel() {
       })
       .catch((e: unknown) => {
         if (cancelled) return;
+        // A refusal is a correct answer, not a failure — see NO_BOOK_ACCESS_MESSAGE.
+        const code = (e as { code?: unknown } | null)?.code;
+        if (isRefusalCode(code)) {
+          setState({ kind: "refused", message: NO_BOOK_ACCESS_MESSAGE });
+          return;
+        }
         console.warn("[lending books] load failed", e);
         setState({ kind: "error" });
       });

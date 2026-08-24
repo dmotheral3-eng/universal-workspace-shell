@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { bus } from "@/bus";
 import { usePanelScope } from "@/shell/panel-scope";
 import { isBrokerMode } from "@/data/cube-broker";
+import { NO_BOOK_ACCESS_MESSAGE, isRefusalCode } from "@/shell/door-email-claim";
 import type { LegalDataState } from "@/panels/legal/use-legal-data";
 
 /**
@@ -62,6 +63,12 @@ export function useLendingData<T>(
       })
       .catch((e: unknown) => {
         if (cancelled) return;
+        // A refusal is a correct answer, not a failure — see NO_BOOK_ACCESS_MESSAGE.
+        const code = (e as { code?: unknown } | null)?.code;
+        if (isRefusalCode(code)) {
+          setState({ kind: "refused", message: NO_BOOK_ACCESS_MESSAGE });
+          return;
+        }
         // Detail to the console only: a broker code can name a resource.
         console.warn("[lending panel] load failed", e);
         setState({ kind: "error" });

@@ -27,6 +27,38 @@ export class BrokerError extends Error {
   }
 }
 
+/**
+ * How long a brokered read may take before the panel is told it failed.
+ *
+ * WHY A CEILING EXISTS AT ALL. Every panel on this surface renders "Loading…"
+ * until its promise settles, so a request that never settles is not a slow
+ * panel — it is a permanently stuck one, with no error branch ever reached and
+ * nothing on screen admitting anything is wrong. D-MSDOOR-2 was exactly that:
+ * a broker route that answered nothing left the Books pane spinning forever
+ * while the pane's own error handling sat unused. The route is fixed; this is
+ * the half that means no FUTURE unanswered request can do it again.
+ *
+ * A pane that cannot fail visibly is a defect on its own.
+ */
+const BROKER_TIMEOUT_MS = 15_000;
+
+/**
+ * `fetch` that is guaranteed to settle. Aborts become a `timeout` code rather
+ * than a DOMException, so callers keep one error type.
+ */
+async function fetchWithTimeout(input: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), BROKER_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (controller.signal.aborted) throw new BrokerError("timeout");
+    throw new BrokerError("unreachable");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 interface BrokerPayload<T> {
   resource: string;
   tenant: string;
@@ -52,7 +84,7 @@ export async function brokerGet<T>(
   const pinned = getConfig().data.broker?.tenantId;
   if (pinned) headers["X-Tenant-Id"] = pinned;
 
-  const res = await fetch(`/api/cube/${resource}${suffix}`, { headers });
+  const res = await fetchWithTimeout(`/api/cube/${resource}${suffix}`, { headers });
   const json = (await res.json().catch(() => null)) as
     | BrokerPayload<T>
     | { error?: string }
@@ -122,7 +154,7 @@ export async function postDecision(input: {
   const pinned = getConfig().data.broker?.tenantId;
   if (pinned) headers["X-Tenant-Id"] = pinned;
 
-  const res = await fetch("/api/cube/lending_decision_log", {
+  const res = await fetchWithTimeout("/api/cube/lending_decision_log", {
     method: "POST",
     headers,
     body: JSON.stringify({
