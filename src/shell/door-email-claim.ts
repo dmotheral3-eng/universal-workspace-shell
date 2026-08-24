@@ -45,3 +45,32 @@ export function isMissingEmailError(message: string): boolean {
   const m = message.toLowerCase();
   return MISSING_EMAIL_PHRASES.some((p) => m.includes(p));
 }
+
+/**
+ * The broker refused, politely.
+ *
+ * Access on this surface is granted ONE BOOK AT A TIME (public.lending_book_access
+ * on master, read through fn_lending_entitlement), so a person can hold a valid
+ * session, belong to the right tenant, and still correctly be shown nothing.
+ * That is not an error and must not be dressed as one — "try again shortly" is
+ * false advice for a state that will never change on its own.
+ *
+ * Companion to NO_EMAIL_MESSAGE above: that one is the door refusing an identity
+ * it cannot name, this one is the workspace refusing an identity it CAN name but
+ * has not been given anything to show.
+ */
+export const NO_BOOK_ACCESS_MESSAGE =
+  "You are signed in, but no book has been opened to you yet. " +
+  "Access is granted one book at a time — ask whoever set up your workspace to grant one.";
+
+/**
+ * Broker codes that mean "the answer is no", as opposed to "this broke".
+ *
+ * `timeout` and `unreachable` are deliberately NOT here: those are failures and
+ * belong in the error branch, where "try again shortly" is the right advice.
+ */
+const REFUSAL_CODES = new Set(["not_entitled", "tenant_unresolved", "tenant_ambiguous"]);
+
+export function isRefusalCode(code: unknown): boolean {
+  return typeof code === "string" && REFUSAL_CODES.has(code);
+}

@@ -25,6 +25,14 @@ export type LegalDataState<T> =
   | { kind: "awaiting-entity" }
   | { kind: "loading" }
   | { kind: "error" }
+  /**
+   * The server answered, and the answer was no. Distinct from `error` on
+   * purpose: "you have not been given a book" is a correct, final reading of
+   * the record, and telling someone to "try again shortly" is wrong advice.
+   * Carries its own sentence because only the refusing surface knows which
+   * refusal it was.
+   */
+  | { kind: "refused"; message: string }
   | { kind: "ready"; data: T };
 
 interface UseLegalDataResult<T> {

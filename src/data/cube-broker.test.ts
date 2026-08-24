@@ -102,3 +102,47 @@ describe("isBrokerMode", () => {
     expect(isBrokerMode()).toBe(true);
   });
 });
+
+/**
+ * D-MSDOOR-2: THE PANE MUST BE ABLE TO FAIL.
+ *
+ * The broker route that hung is fixed, but the reason a hung route was able to
+ * freeze the UI at all was here: `brokerGet` awaited a fetch with no ceiling, so
+ * a request that never settled left every panel on "Loading…" forever with its
+ * own error branch never reached. These pin the ceiling.
+ */
+describe("a request that never settles still fails visibly", () => {
+  it("gives up with a timeout code instead of hanging forever", async () => {
+    vi.useFakeTimers();
+    // The exact production shape: a server that accepts the socket and never answers.
+    fetchMock = vi.fn(
+      (_input: string, init: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () =>
+            reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
+          );
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pending = brokerGet("rate_card");
+    const assertion = expect(pending).rejects.toMatchObject({ code: "timeout" });
+    await vi.advanceTimersByTimeAsync(20_000);
+    await assertion;
+    vi.useRealTimers();
+  });
+
+  it("passes an abort signal on every brokered read", async () => {
+    await brokerGet("rate_card");
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("reports a network failure as a broker code, not a raw exception", async () => {
+    fetchMock = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(brokerGet("rate_card")).rejects.toMatchObject({ code: "unreachable" });
+  });
+});

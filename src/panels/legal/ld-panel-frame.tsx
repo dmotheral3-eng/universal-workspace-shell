@@ -77,6 +77,13 @@ export function LdPanelFrame<T>({
       where = "This did not load.";
       next = "Try again shortly. Nothing has been changed.";
       break;
+    case "refused":
+      // Not a failure and not a retry: the record was read and the answer was
+      // no. The copy names who can change it rather than inviting another go.
+      body = <LdEmpty line={state.message} />;
+      where = "You do not have access to this yet.";
+      next = "Access is granted per book. Ask whoever set up your workspace to open one to you.";
+      break;
     case "ready": {
       body = render(state.data);
       const count = countOf ? countOf(state.data) : null;
