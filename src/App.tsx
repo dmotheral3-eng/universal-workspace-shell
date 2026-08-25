@@ -7,6 +7,8 @@ import { NavRail } from "@/shell/nav-rail";
 import { PathPanelRoute } from "@/shell/path-route";
 import { getAuthConfig } from "@/config";
 import { BorrowWorksApp } from "@/bw/bw-app";
+import { SpectrumApp } from "@/spectrum/spectrum-app";
+import { getConfig } from "@/config";
 
 function AppInner() {
   const { openPopout } = usePopoutManager();
@@ -22,6 +24,21 @@ function AppInner() {
     return (
       <LawDogGate>
         <BorrowWorksApp />
+      </LawDogGate>
+    );
+  }
+
+  /**
+   * The Spectrum face (D-LDSPECTRUM-1): a profile that declares face="spectrum"
+   * gets the two-zone Read/Work chrome. Read is fixed and answer-arranged; Work
+   * is the panel workspace below. Same gate, same data doors.
+   */
+  if (getConfig().face === "spectrum") {
+    return (
+      <LawDogGate>
+        <PopoutProvider openPopout={openPopout}>
+          <SpectrumApp />
+        </PopoutProvider>
       </LawDogGate>
     );
   }

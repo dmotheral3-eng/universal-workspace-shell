@@ -337,6 +337,17 @@ export function groupPartiesByRole(rows: LdParty[]): { role: string; parties: Ld
 // ---- pure per-store mappers (exported for fixture testing) -------------------
 
 
+// ---- answer door shape (public.fn_answer_legal) ------------------------------
+export interface LdAnswer {
+  understood: boolean;
+  intent?: string;
+  engine?: string;
+  answer?: { headline?: string | null; rows?: Row[] | null };
+  next?: { kind?: string; label?: string; question?: string }[];
+  reason?: string;
+  try?: string[];
+}
+
 // ---- master case document (legal.v_master_case_doc) --------------------------
 //
 // One row per matter: the ld_cases header plus every binder section already
@@ -346,6 +357,7 @@ export function groupPartiesByRole(rows: LdParty[]): { role: string; parties: Ld
 
 export interface LdMasterCaseDoc {
   caseId: string;
+  tenantId: string | null;
   slug: string | null;
   caseName: string;
   caseNumber: string | null;
@@ -392,6 +404,7 @@ export function mapMasterCaseDocRow(r: Row): LdMasterCaseDoc {
   for (const k of Object.keys(c)) counts[k] = num(c[k]) ?? 0;
   return {
     caseId: String(r.case_id ?? ""),
+    tenantId: str(r.tenant_id),
     slug: str(r.slug),
     caseName: String(r.case_name ?? "Untitled matter"),
     caseNumber: str(r.case_number),
@@ -706,6 +719,27 @@ export class LawDogProvider implements DataProvider {
       `select=*&case_id=eq.${entityId}&limit=1`
     );
     return rows.length ? mapMasterCaseDocRow(rows[0]) : null;
+  }
+
+  /**
+   * The record-only answer door (public.fn_answer_legal on the legal estate).
+   * Deterministic SQL over the tenant's own rows — no model, no charge when the
+   * question cannot be grounded. Returns either an understood answer
+   * ({headline, rows}, next questions) or a declined shape ({reason, try}).
+   */
+  async askLegal(tenantId: string, question: string): Promise<LdAnswer> {
+    const token = await getAccessToken();
+    const res = await fetch(`${this.cfg.url}/rest/v1/rpc/fn_answer_legal`, {
+      method: "POST",
+      headers: {
+        apikey: this.cfg.anonKey,
+        Authorization: `Bearer ${token ?? this.cfg.anonKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ p_tenant: tenantId, p_question: question }),
+    });
+    if (!res.ok) throw new Error(`LawDog ask ${res.status}: ${await res.text()}`);
+    return (await res.json()) as LdAnswer;
   }
 
   async listClaimMath(): Promise<LdClaimGroup[]> {
