@@ -6,6 +6,7 @@ import { devBrokerPlugin } from "./server/dev-broker-plugin"
 import { devWhereWeArePlugin } from "./server/dev-whereweare-plugin"
 import { devInboxPlugin } from "./server/dev-inbox-plugin"
 import { publicSurfaceGatePlugin } from "./build-plugins/public-surface-gate-plugin"
+import { profileBundlePlugin, includeFixtureEntry } from "./build-plugins/profile-bundle-plugin"
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -25,6 +26,10 @@ export default defineConfig({
     devWhereWeArePlugin(),
     devInboxPlugin(),
     publicSurfaceGatePlugin(),
+    // D-BWSHELL-1: emits virtual:panel-registry with ONLY this profile's panels,
+    // and sets <title> from this profile's brand. Build-time, so foreign profile
+    // code never enters the graph.
+    profileBundlePlugin(__dirname),
   ],
   resolve: {
     alias: {
@@ -36,8 +41,15 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, "index.html"),
         popout: path.resolve(__dirname, "popout.html"),
-        // fixture harness for the legal panels — see src/panels-preview.tsx
-        panels: path.resolve(__dirname, "panels.html"),
+        // D-BWSHELL-1: the legal-panels fixture harness (src/panels-preview.tsx)
+        // is no longer an unconditional entry. It statically imports every legal
+        // panel, so building it dragged that code into EVERY profile — and it was
+        // served: /panels.html returned 200 at the BorrowWorks door on 2026-08-25.
+        // Built only for the profile that owns those panels, or on explicit
+        // VITE_INCLUDE_FIXTURES=true. See includeFixtureEntry().
+        ...(includeFixtureEntry()
+          ? { panels: path.resolve(__dirname, "panels.html") }
+          : {}),
       },
     },
   },

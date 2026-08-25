@@ -1,42 +1,14 @@
 import type { AuthConfig, WorkspaceConfig } from "./types";
-import lawdogJson from "./lawdog.config.json";
-import workspaceJson from "./workspace.config.json";
-import cubeJson from "./cube.config.json";
-import lendingJson from "./lending-app.config.json";
-import borrowworksJson from "./borrowworks.config.json";
-import inboxJson from "./inbox.config.json";
+// D-BWSHELL-1: ONE config is bundled, chosen at build time by
+// build-plugins/profile-bundle-plugin.ts from VITE_PROFILE. This file used to
+// import all six statically and switch at runtime, which inlined every other
+// client's brand, vocabulary and suggested questions into every door's bundle.
+// VITE_PROFILE is a build-time constant, so the choice belongs at build time.
+import profileJson from "virtual:profile-config";
 
 export type { WorkspaceConfig, BrandConfig, VocabularyConfig, AuthConfig, PanelType } from "./types";
 
-function pickProfile(profile: string | undefined): WorkspaceConfig {
-  switch (profile) {
-    case "lawdog":
-      return lawdogJson as WorkspaceConfig;
-    // Cube-backed surfaces: master is the door, /api/cube/* is the data path.
-    case "cube":
-      return cubeJson as WorkspaceConfig;
-    // The lending surface. Same door and same data path as `cube`; a separate
-    // profile because VITE_PROFILE is inlined at build time, so one deployment
-    // serves exactly one of these — see .env.example.
-    case "lending-app":
-      return lendingJson as WorkspaceConfig;
-    // The BorrowWorks operator desk. Same door and same data path as `lending-app`;
-    // a separate profile because it renders the two-register surface rather than
-    // the panel workspace, and VITE_PROFILE is inlined at build time.
-    case "borrowworks":
-      return borrowworksJson as WorkspaceConfig;
-    // Dave's own operator inbox. Master is the door; the data path is
-    // /api/inbox rather than the Cube broker, because every source it reads
-    // lives on master (D-INBOX-1). A separate profile because VITE_PROFILE is
-    // inlined at build time, so one deployment serves exactly one of these.
-    case "inbox":
-      return inboxJson as WorkspaceConfig;
-    default:
-      return workspaceJson as WorkspaceConfig;
-  }
-}
-
-const config: WorkspaceConfig = pickProfile(import.meta.env.VITE_PROFILE);
+const config: WorkspaceConfig = profileJson as WorkspaceConfig;
 
 if (config.data.lawdog) {
   config.data.lawdog.anonKey = import.meta.env.VITE_LAWDOG_ANON_KEY ?? "";
