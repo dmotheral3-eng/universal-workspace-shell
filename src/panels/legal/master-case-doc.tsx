@@ -180,7 +180,7 @@ export function masterCaseDocToWordHtml(d: LdMasterCaseDoc): string {
   return html;
 }
 
-function ExportBar({ d }: { d: LdMasterCaseDoc }) {
+export function ExportBar({ d }: { d: LdMasterCaseDoc }) {
   const base = (d.slug || "matter").replace(/[^a-z0-9_-]+/gi, "_");
   const btn = "rounded-[6px] border px-2.5 py-1 text-[12px] hover:bg-[#F5F5F6]";
   return (

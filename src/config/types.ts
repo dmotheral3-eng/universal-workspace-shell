@@ -91,6 +91,8 @@ export type PanelType =
   | "Attestations";
 
 export interface WorkspaceConfig {
+  /** Which face the door wears. "spectrum" = the two-zone Read/Work face (D-LDSPECTRUM-1); absent = the panel workspace. */
+  face?: "spectrum";
   brand: BrandConfig;
   vocabulary: VocabularyConfig;
   panels: PanelType[];
