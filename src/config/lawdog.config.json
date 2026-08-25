@@ -12,7 +12,26 @@
     "item": "Timeline Event",
     "itemPlural": "Timeline"
   },
-  "panels": ["EntityList", "MatterHome", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix", "Parties", "Rates", "Savings", "Subpoenas", "ClaimValue", "RecoveryOutlook", "Ledger"],
+  "panels": [
+    "EntityList",
+    "MatterHome",
+    "MasterCaseDoc",
+    "ItemTable",
+    "ReadingPane",
+    "ChatRail",
+    "StageTracker",
+    "DocBrowser",
+    "MetricGrid",
+    "MasterBoard",
+    "CoverageMatrix",
+    "Parties",
+    "Rates",
+    "Savings",
+    "Subpoenas",
+    "ClaimValue",
+    "RecoveryOutlook",
+    "Ledger"
+  ],
   "defaultLayout": "Classic",
   "chat": {
     "suggestedQuestions": [

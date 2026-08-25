@@ -4,7 +4,7 @@ import {
   List, Home, Table, FileText, MessageSquare, GitBranch,
   BarChart3, FolderOpen, LayoutDashboard, Grid3X3,
   Users, Tag, PiggyBank, Gavel, Calculator, Target, ScrollText, Route,
-  Library, Scale, PhoneCall, History, BadgeCheck, Inbox,
+  Library, Scale, PhoneCall, History, BadgeCheck, Inbox, BookOpen,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -28,6 +28,7 @@ const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ className?: st
   ClaimValue:     { icon: Calculator,      label: "Claim",          group: "legal" },
   RecoveryOutlook:{ icon: Target,          label: "Recovery",       group: "legal" },
   Ledger:         { icon: ScrollText,      label: "Ledger",         group: "legal" },
+  MasterCaseDoc:  { icon: BookOpen,        label: "Master document", group: "legal" },
   Books:          { icon: Library,          label: "Books",          group: "lending" },
   Decisions:      { icon: Scale,            label: "Decisions",      group: "lending" },
   Interactions:   { icon: PhoneCall,        label: "Interactions",   group: "lending" },
@@ -51,6 +52,7 @@ const RAIL_ORDER: PanelType[] = [
   "ClaimValue",
   "RecoveryOutlook",
   "Ledger",
+  "MasterCaseDoc",
   "Books",
   "Decisions",
   "Interactions",

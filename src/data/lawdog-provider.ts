@@ -336,6 +336,99 @@ export function groupPartiesByRole(rows: LdParty[]): { role: string; parties: Ld
 
 // ---- pure per-store mappers (exported for fixture testing) -------------------
 
+
+// ---- master case document (legal.v_master_case_doc) --------------------------
+//
+// One row per matter: the ld_cases header plus every binder section already
+// assembled server-side as JSON, with a counts block that states the denominator
+// of each section. security_invoker on the view means tenant RLS decides what a
+// signed-in reader gets — the shell adds no filter and removes none.
+
+export interface LdMasterCaseDoc {
+  caseId: string;
+  slug: string | null;
+  caseName: string;
+  caseNumber: string | null;
+  court: string | null;
+  judge: string | null;
+  clientName: string | null;
+  opposingParty: string | null;
+  attorney: string | null;
+  representation: string | null;
+  matterType: string | null;
+  caseState: string | null;
+  status: string | null;
+  posture: string | null;
+  verdictLine: string | null;
+  caseStrength: number | null;
+  totalDocumented: number | null;
+  recoveryLow: number | null;
+  recoveryHigh: number | null;
+  filedDate: string | null;
+  servedDate: string | null;
+  answerDue: string | null;
+  updatedAt: string | null;
+  parties: Row[];
+  claims: Row[];
+  faultGrounds: Row[];
+  allegations: Row[];
+  timeline: Row[];
+  documents: Row[];
+  exhibits: Row[];
+  subpoenas: Row[];
+  nextMoves: Row[];
+  openTasks: Row[];
+  recovery: Row | null;
+  counts: Record<string, number>;
+}
+
+function arr(v: unknown): Row[] {
+  return Array.isArray(v) ? (v as Row[]) : [];
+}
+
+export function mapMasterCaseDocRow(r: Row): LdMasterCaseDoc {
+  const counts: Record<string, number> = {};
+  const c = (r.counts ?? {}) as Record<string, unknown>;
+  for (const k of Object.keys(c)) counts[k] = num(c[k]) ?? 0;
+  return {
+    caseId: String(r.case_id ?? ""),
+    slug: str(r.slug),
+    caseName: String(r.case_name ?? "Untitled matter"),
+    caseNumber: str(r.case_number),
+    court: str(r.court),
+    judge: str(r.judge),
+    clientName: str(r.client_name),
+    opposingParty: str(r.opposing_party),
+    attorney: str(r.attorney),
+    representation: str(r.representation),
+    matterType: str(r.matter_type),
+    caseState: str(r.case_state),
+    status: str(r.status),
+    posture: str(r.posture),
+    verdictLine: str(r.verdict_line),
+    caseStrength: num(r.case_strength),
+    totalDocumented: num(r.total_documented),
+    recoveryLow: num(r.recovery_low),
+    recoveryHigh: num(r.recovery_high),
+    filedDate: str(r.filed_date),
+    servedDate: str(r.served_date),
+    answerDue: str(r.answer_due),
+    updatedAt: str(r.updated_at),
+    parties: arr(r.parties),
+    claims: arr(r.claims),
+    faultGrounds: arr(r.fault_grounds),
+    allegations: arr(r.allegations),
+    timeline: arr(r.timeline),
+    documents: arr(r.documents),
+    exhibits: arr(r.exhibits),
+    subpoenas: arr(r.subpoenas),
+    nextMoves: arr(r.next_moves),
+    openTasks: arr(r.open_tasks),
+    recovery: r.recovery && typeof r.recovery === "object" ? (r.recovery as Row) : null,
+    counts,
+  };
+}
+
 export function rowCaseId(store: LawDogStore, r: Row): string {
   return String(store === "cube" ? r.case_id : r.id);
 }
@@ -604,6 +697,17 @@ export class LawDogProvider implements DataProvider {
    * claim. Narrowing to the selected matter needs a claim→case join, which lands
    * when ld_claims is wired; until then the panel says what it is showing.
    */
+  /** The whole matter as one binder row (legal.v_master_case_doc). Cube-only;
+   *  the view is security_invoker so tenant RLS governs what comes back. */
+  async getMasterCaseDoc(entityId: string): Promise<LdMasterCaseDoc | null> {
+    if (!this.isCubeStore()) return null;
+    const rows = await this.q<Row>(
+      "v_master_case_doc",
+      `select=*&case_id=eq.${entityId}&limit=1`
+    );
+    return rows.length ? mapMasterCaseDocRow(rows[0]) : null;
+  }
+
   async listClaimMath(): Promise<LdClaimGroup[]> {
     if (!this.isCubeStore()) return [];
     const rows = await this.q<Row>(

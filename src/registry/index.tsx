@@ -18,6 +18,7 @@ import { SubpoenasPanel } from "@/panels/legal/subpoenas";
 import { ClaimValuePanel } from "@/panels/legal/claim-value";
 import { RecoveryOutlookPanel } from "@/panels/legal/recovery-outlook";
 import { LedgerPanel } from "@/panels/legal/ledger";
+import { MasterCaseDocPanel } from "@/panels/legal/master-case-doc";
 import { BooksPanel } from "@/panels/lending/books";
 import { DecisionsPanel } from "@/panels/lending/decisions";
 import { InteractionsPanel } from "@/panels/lending/interactions";
@@ -44,6 +45,7 @@ const panelMap: Record<PanelType, React.ComponentType> = {
   ClaimValue: ClaimValuePanel,
   RecoveryOutlook: RecoveryOutlookPanel,
   Ledger: LedgerPanel,
+  MasterCaseDoc: MasterCaseDocPanel,
   Books: BooksPanel,
   Decisions: DecisionsPanel,
   Interactions: InteractionsPanel,
