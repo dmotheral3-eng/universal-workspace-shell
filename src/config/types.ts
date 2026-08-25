@@ -80,6 +80,8 @@ export type PanelType =
   | "RecoveryOutlook"
   // the matter's three-actor record — who said, did, produced, refused (port of the Ledger Console)
   | "Ledger"
+  // the whole matter as one printable binder — Craig-portal dashboard idiom ported (pattern only)
+  | "MasterCaseDoc"
   // lending panels — brokered door only, registered per profile in *.config.json.
   // The book is the entity; the four evidence panels narrow to the selected book.
   | "Books"

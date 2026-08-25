@@ -16,6 +16,7 @@ import {
   Table,
   ArrowRight,
   List,
+  BookOpen,
 } from "lucide-react";
 import {
   CardGrid,
@@ -239,6 +240,14 @@ export function MatterHomePanel() {
       action: "Ask a question",
       emphasis: true,
       then: () => bus.emit("ask.focus", { scopeId: emitScope }),
+    },
+    {
+      panel: "MasterCaseDoc",
+      title: "Master case document",
+      description: "The whole matter as one document: recovery, claims for and against us, weaknesses to close, and the full record. Build it to Word or print it.",
+      icon: BookOpen,
+      tone: "info",
+      action: "Open the master document",
     },
     {
       panel: "DocBrowser",

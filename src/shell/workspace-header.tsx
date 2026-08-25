@@ -17,7 +17,7 @@ import { getSession, onAuthChange, signOut, type LawDogSession } from "@/data/la
 
 const ALL_PANEL_TYPES: PanelType[] = [
   "InboxBoard", "WhereWeAre", "EntityList", "MatterHome", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix",
-  "Parties", "Rates", "Savings", "Subpoenas", "ClaimValue", "RecoveryOutlook",
+  "Parties", "Rates", "Savings", "Subpoenas", "ClaimValue", "RecoveryOutlook", "Ledger", "MasterCaseDoc",
 ];
 
 /** The profile decides which panels exist; this list only fixes their order.
@@ -50,6 +50,7 @@ function panelLabel(panelType: PanelType): string {
     case "ClaimValue": return "Claim value";
     case "RecoveryOutlook": return "Recovery outlook";
     case "Ledger": return "Ledger";
+    case "MasterCaseDoc": return "Master document";
     case "Books": return vocab.entityPlural;
     case "Decisions": return "Decisions";
     case "Interactions": return "Interactions";
