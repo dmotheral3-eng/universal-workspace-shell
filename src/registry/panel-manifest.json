@@ -1,0 +1,102 @@
+{
+  "Attestations": {
+    "export": "AttestationsPanel",
+    "module": "@/panels/lending/attestations"
+  },
+  "Books": {
+    "export": "BooksPanel",
+    "module": "@/panels/lending/books"
+  },
+  "Changes": {
+    "export": "ChangesPanel",
+    "module": "@/panels/lending/changes"
+  },
+  "ChatRail": {
+    "export": "ChatRailPanel",
+    "module": "@/panels/chat-rail"
+  },
+  "ClaimValue": {
+    "export": "ClaimValuePanel",
+    "module": "@/panels/legal/claim-value"
+  },
+  "CoverageMatrix": {
+    "export": "CoverageMatrixPanel",
+    "module": "@/panels/coverage-matrix"
+  },
+  "Decisions": {
+    "export": "DecisionsPanel",
+    "module": "@/panels/lending/decisions"
+  },
+  "DocBrowser": {
+    "export": "DocBrowserPanel",
+    "module": "@/panels/doc-browser"
+  },
+  "EntityList": {
+    "export": "EntityListPanel",
+    "module": "@/panels/entity-list"
+  },
+  "InboxBoard": {
+    "export": "InboxBoardPanel",
+    "module": "@/panels/inbox/board"
+  },
+  "Interactions": {
+    "export": "InteractionsPanel",
+    "module": "@/panels/lending/interactions"
+  },
+  "ItemTable": {
+    "export": "ItemTablePanel",
+    "module": "@/panels/item-table"
+  },
+  "Ledger": {
+    "export": "LedgerPanel",
+    "module": "@/panels/legal/ledger"
+  },
+  "MasterBoard": {
+    "export": "MasterBoardPanel",
+    "module": "@/panels/master-board"
+  },
+  "MasterCaseDoc": {
+    "export": "MasterCaseDocPanel",
+    "module": "@/panels/legal/master-case-doc"
+  },
+  "MatterHome": {
+    "export": "MatterHomePanel",
+    "module": "@/panels/matter-home"
+  },
+  "MetricGrid": {
+    "export": "MetricGridPanel",
+    "module": "@/panels/metric-grid"
+  },
+  "Parties": {
+    "export": "PartiesPanel",
+    "module": "@/panels/legal/parties"
+  },
+  "Rates": {
+    "export": "RatesPanel",
+    "module": "@/panels/legal/rates"
+  },
+  "ReadingPane": {
+    "export": "ReadingPanePanel",
+    "module": "@/panels/reading-pane"
+  },
+  "RecoveryOutlook": {
+    "export": "RecoveryOutlookPanel",
+    "module": "@/panels/legal/recovery-outlook"
+  },
+  "Savings": {
+    "export": "SavingsPanel",
+    "module": "@/panels/legal/savings"
+  },
+  "StageTracker": {
+    "export": "StageTrackerPanel",
+    "module": "@/panels/stage-tracker"
+  },
+  "Subpoenas": {
+    "export": "SubpoenasPanel",
+    "module": "@/panels/legal/subpoenas"
+  },
+  "WhereWeAre": {
+    "export": "WhereWeArePanel",
+    "module": "@/panels/whereweare"
+  }
+}
