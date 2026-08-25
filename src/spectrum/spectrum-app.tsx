@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { getConfig } from "@/config";
 import { getDataProvider } from "@/data";
-import { LawDogProvider, type LdAnswer, type LdMasterCaseDoc } from "@/data/lawdog-provider";
+import { LawDogProvider, type LdMasterCaseDoc } from "@/data/lawdog-provider";
 import type { Entity } from "@/data/types";
 import { getSession, signOut } from "@/data/lawdog-auth";
 import { ExportBar, MasterCaseDocView, masterCaseDocToCsv } from "@/panels/legal/master-case-doc";
@@ -10,6 +10,7 @@ import { dateOnly, humanize, money, moneyRange } from "@/panels/legal/ld-kit";
 import { LayoutRenderer, WorkspaceHeader, CollapsedRail, CommandPalette } from "@/shell";
 import { NavRail } from "@/shell/nav-rail";
 import { PathPanelRoute } from "@/shell/path-route";
+import { Brain } from "./brain";
 
 /**
  * SPECTRUM FACE — D-LDSPECTRUM-1 (Dave word 2026-08-25: "this is what we want to
@@ -26,7 +27,6 @@ import { PathPanelRoute } from "@/shell/path-route";
  * category labels and the live state. Every count is the record's.
  */
 
-type Row = Record<string, unknown>;
 const s = (v: unknown): string => (v === null || v === undefined ? "" : String(v));
 
 const TABS = [
@@ -80,159 +80,6 @@ function Table({ cols, rows, widths }: { cols: string[]; rows: ReactNode[][]; wi
         ))
       )}
     </div>
-  );
-}
-
-function Chip({ kind, children }: { kind: "onrecord" | "measured" | "ourread" | "estimate"; children: ReactNode }) {
-  return <span className={`sp-src ${kind}`}>{children}</span>;
-}
-
-/* ---------- Brain ---------- */
-
-function Brain({ doc, provider, questions }: { doc: LdMasterCaseDoc; provider: LawDogProvider; questions: string[] }) {
-  const [q, setQ] = useState("");
-  const [asked, setAsked] = useState<string | null>(null);
-  const [ans, setAns] = useState<LdAnswer | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  const ask = useCallback(
-    async (text: string) => {
-      const t = text.trim();
-      if (!t) return;
-      if (!doc.tenantId) {
-        setErr("This matter has no tenant on record, so the answer door cannot be opened for it.");
-        return;
-      }
-      setBusy(true);
-      setErr(null);
-      setAsked(t);
-      try {
-        setAns(await provider.askLegal(doc.tenantId, t));
-      } catch (e) {
-        setErr(e instanceof Error ? e.message : String(e));
-      } finally {
-        setBusy(false);
-      }
-    },
-    [doc.tenantId, provider]
-  );
-
-  const rows: Row[] = Array.isArray(ans?.answer?.rows) ? (ans!.answer!.rows as Row[]) : [];
-  const keys = rows.length ? Object.keys(rows[0]).filter((k) => rows.some((r) => r[k] !== null && r[k] !== "")).slice(0, 4) : [];
-
-  const copy = () => {
-    const lines = [asked ?? "", ans?.answer?.headline ?? ans?.reason ?? "", ...rows.map((r) => keys.map((k) => s(r[k])).join(" · "))];
-    void navigator.clipboard?.writeText(lines.join("\n"));
-  };
-  const csv = () => {
-    const esc = (v: unknown) => `"${s(v).replace(/"/g, '""')}"`;
-    const out = [keys.map(esc).join(","), ...rows.map((r) => keys.map((k) => esc(r[k])).join(","))].join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([out], { type: "text/csv" }));
-    a.download = "answer.csv";
-    a.click();
-  };
-
-  return (
-    <>
-      <div className="sp-memory">
-        <div className="sp-memHead">What it holds for {doc.caseName}</div>
-        <div className="sp-memNums">
-          <span><b>{doc.counts.documents ?? 0}</b> documents</span>
-          <span><b>{doc.counts.timeline ?? 0}</b> timeline rows</span>
-          <span><b>{doc.counts.claims ?? 0}</b> claims</span>
-          <span><b>{doc.counts.parties ?? 0}</b> people</span>
-        </div>
-        <p>It answers from these rows only. Nothing it cannot point at gets said.</p>
-      </div>
-
-      <div className="sp-qbar">
-        <span className="sp-qc">Ask</span>
-        <input
-          className="sp-qin"
-          value={q}
-          placeholder="Ask about this matter…"
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") void ask(q);
-          }}
-        />
-        <button className="sp-update" disabled={busy} onClick={() => void ask(q)}>
-          {busy ? "Reading…" : "Ask"}
-        </button>
-      </div>
-      <div className="sp-suggest">
-        {questions.map((sq) => (
-          <button key={sq} className="sp-ghost" onClick={() => { setQ(sq); void ask(sq); }}>
-            {sq}
-          </button>
-        ))}
-      </div>
-
-      {err ? <div className="sp-refused"><p>{err}</p></div> : null}
-
-      {ans && ans.understood ? (
-        <>
-          <div className="sp-answer">
-            <p>
-              <Chip kind="onrecord">On record</Chip>
-              {s(ans.answer?.headline) || "The record answered, but had no headline for it."}
-            </p>
-            {ans.intent ? (
-              <p>
-                <Chip kind="measured">Measured</Chip>
-                Read as a question about <b>{humanize(ans.intent)}</b>; {rows.length} row{rows.length === 1 ? "" : "s"} read, engine {s(ans.engine) || "record"}.
-              </p>
-            ) : null}
-            {(ans.next ?? []).map((n, i) => (
-              <p key={i}>
-                <Chip kind="ourread">Our read</Chip>
-                {s(n.label)}{" "}
-                {n.question ? (
-                  <button className="sp-link" onClick={() => { setQ(n.question!); void ask(n.question!); }}>
-                    — ask “{n.question}”
-                  </button>
-                ) : null}
-              </p>
-            ))}
-          </div>
-
-          <div className="sp-secLabel">
-            What it read <em>every row, nothing else</em>
-          </div>
-          <Table cols={keys.map(humanize)} rows={rows.map((r) => keys.map((k) => s(r[k])))} />
-
-          <div className="sp-exports">
-            <button className="sp-ghost" onClick={copy}>Copy</button>
-            <button className="sp-ghost" onClick={csv} disabled={!rows.length}>Export CSV</button>
-            <button className="sp-ghost" onClick={() => window.print()}>Print</button>
-            <span className="sp-exNote">Sources travel with the export. An answer without them is argument, not evidence.</span>
-          </div>
-        </>
-      ) : null}
-
-      {ans && !ans.understood ? (
-        <div className="sp-refused">
-          <div className="sp-refTop">
-            <span className="sp-refQ">“{asked}”</span>
-            <span className="sp-refTag">Declined</span>
-          </div>
-          <p>{s(ans.reason) || "The record could not ground that question, so nothing was said and nothing was charged."}</p>
-          {(ans.try ?? []).length ? (
-            <p className="sp-refDo">
-              Try:{" "}
-              {(ans.try ?? []).map((t, i) => (
-                <button key={i} className="sp-link" onClick={() => { setQ(t); void ask(t); }}>
-                  {t}
-                  {i < (ans.try?.length ?? 0) - 1 ? " · " : ""}
-                </button>
-              ))}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-    </>
   );
 }
 
@@ -411,7 +258,7 @@ export function SpectrumApp() {
               <button key={t.id} className={tab === t.id ? "sp-tb on" : "sp-tb"} onClick={() => setTab(t.id)}>{t.label}</button>
             ))}
           </nav>
-          <main className="sp-page">
+          <main className={tab === "brain" ? "sp-page sp-wide" : "sp-page"}>
             <div className="sp-eyebrow">{meta.eyebrow}</div>
             <h2 className="sp-h2">{meta.sub}</h2>
 
@@ -419,7 +266,7 @@ export function SpectrumApp() {
             {ld && state === "loading" && !doc ? <p className="sp-fixedNote">Reading the record…</p> : null}
             {state === "error" ? <div className="sp-refused"><p>{errText}</p></div> : null}
             {doc && ld ? (
-              tab === "brain" ? <Brain doc={doc} provider={ld} questions={questions} />
+              tab === "brain" ? <Brain doc={doc} provider={ld} questions={questions} entities={entities} onOpenMatter={setEntityId} />
               : tab === "master" ? <div className="sp-card sp-master"><ExportBar d={doc} /><MasterCaseDocView d={doc} /></div>
               : <ReadBody tab={tab} doc={doc} />
             ) : null}
@@ -501,6 +348,10 @@ const CSS = `
 .sp-stat{display:flex;flex-direction:column;} .sp-stat b{font-size:27px;color:var(--ink);font-weight:650;line-height:1.15;letter-spacing:-.02em;}
 .sp-stat span{font-size:12.5px;color:var(--mute);margin-top:2px;}
 .sp-note{border-left:3px solid var(--blue);padding-left:14px;margin:20px 0 0;font-size:13.5px;color:var(--body);max-width:74ch;}
+.sp-wide{max-width:none;padding:0;display:flex;flex-direction:column;}
+.sp-wide .sp-eyebrow,.sp-wide .sp-h2{padding-left:28px;padding-right:28px;}
+.sp-wide .sp-eyebrow{padding-top:20px;}
+.sp-wide .sp-fixedNote,.sp-wide .sp-exports{padding-left:28px;padding-right:28px;}
 .sp-fixedNote{margin-top:30px;font-size:12.5px;color:var(--mute);}
 .sp-refused{background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:16px 18px;margin-top:6px;margin-bottom:22px;}
 .sp-refTop{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:9px;}
