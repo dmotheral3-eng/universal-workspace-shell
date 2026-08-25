@@ -742,6 +742,56 @@ export class LawDogProvider implements DataProvider {
     return (await res.json()) as LdAnswer;
   }
 
+  /** Threads, turns and saved questions — the Brain's own rows (D-LDBRAIN-1). */
+  private async write(table: string, body: unknown, prefer = "return=representation"): Promise<Row[]> {
+    const token = await getAccessToken();
+    const res = await fetch(`${this.cfg.url}/rest/v1/${table}`, {
+      method: "POST",
+      headers: {
+        apikey: this.cfg.anonKey,
+        Authorization: `Bearer ${token ?? this.cfg.anonKey}`,
+        "Content-Type": "application/json",
+        "Content-Profile": "legal",
+        Prefer: prefer,
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`LawDog write ${table} ${res.status}: ${await res.text()}`);
+    return prefer.includes("representation") ? ((await res.json()) as Row[]) : [];
+  }
+
+  async listAskThreads(caseId: string): Promise<{ thread_id: string; title: string; updated_at: string; case_id: string | null }[]> {
+    if (!this.isCubeStore()) return [];
+    const rows = await this.q<Row>("ld_ask_threads", `select=thread_id,title,updated_at,case_id&case_id=eq.${caseId}&order=updated_at.desc&limit=40`);
+    return rows.map((r) => ({ thread_id: String(r.thread_id), title: String(r.title ?? ""), updated_at: String(r.updated_at ?? ""), case_id: r.case_id ? String(r.case_id) : null }));
+  }
+
+  async listAskTurns(threadId: string): Promise<{ turn_id: string; question: string; answer: LdAnswer | null; understood: boolean | null; asked_at: string }[]> {
+    if (!this.isCubeStore()) return [];
+    const rows = await this.q<Row>("ld_ask_turns", `select=turn_id,question,answer,understood,asked_at&thread_id=eq.${threadId}&order=asked_at.asc&limit=100`);
+    return rows.map((r) => ({ turn_id: String(r.turn_id), question: String(r.question ?? ""), answer: (r.answer as LdAnswer) ?? null, understood: r.understood as boolean | null, asked_at: String(r.asked_at ?? "") }));
+  }
+
+  async createAskThread(tenantId: string, caseId: string, title: string): Promise<string> {
+    const rows = await this.write("ld_ask_threads", { tenant_id: tenantId, case_id: caseId, title });
+    return String(rows[0]?.thread_id ?? "");
+  }
+
+  async appendAskTurn(threadId: string, tenantId: string, question: string, answer: LdAnswer): Promise<void> {
+    await this.write("ld_ask_turns", { thread_id: threadId, tenant_id: tenantId, question, answer, understood: answer.understood }, "return=minimal");
+  }
+
+  async listSavedQuestions(caseId: string): Promise<{ saved_id: string; name: string; question: string; cadence: string | null; day_of_week: string | null; time_of_day: string | null; is_active: boolean }[]> {
+    if (!this.isCubeStore()) return [];
+    const rows = await this.q<Row>("ld_saved_questions", `select=saved_id,name,question,cadence,day_of_week,time_of_day,is_active&case_id=eq.${caseId}&order=created_at.desc&limit=25`);
+    return rows.map((r) => ({ saved_id: String(r.saved_id), name: String(r.name ?? ""), question: String(r.question ?? ""), cadence: str(r.cadence), day_of_week: str(r.day_of_week), time_of_day: str(r.time_of_day), is_active: Boolean(r.is_active) }));
+  }
+
+  /** Saved, NOT scheduled — is_active stays false until a runner exists on the estate. */
+  async saveQuestion(a: { tenantId: string; caseId: string; name: string; question: string; cadence: string; dayOfWeek: string; timeOfDay: string }): Promise<void> {
+    await this.write("ld_saved_questions", { tenant_id: a.tenantId, case_id: a.caseId, name: a.name, question: a.question, cadence: a.cadence, day_of_week: a.dayOfWeek, time_of_day: a.timeOfDay, is_active: false }, "return=minimal");
+  }
+
   async listClaimMath(): Promise<LdClaimGroup[]> {
     if (!this.isCubeStore()) return [];
     const rows = await this.q<Row>(
