@@ -14,18 +14,27 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
 import { getSession, onAuthChange, signOut, type LawDogSession } from "@/data/lawdog-auth";
+import panelManifest from "@/registry/panel-manifest.json";
 
+// Ordering hint only. Keys listed here appear first in the panel menu;
+// panel-manifest.json is the single source of truth for which panels exist.
 const ALL_PANEL_TYPES: PanelType[] = [
   "InboxBoard", "WhereWeAre", "EntityList", "MatterHome", "ItemTable", "ReadingPane", "ChatRail", "StageTracker", "DocBrowser", "MetricGrid", "MasterBoard", "CoverageMatrix",
   "Parties", "Rates", "Savings", "Subpoenas", "ClaimValue", "RecoveryOutlook", "Ledger", "MasterCaseDoc",
 ];
+const MANIFEST_PANEL_TYPES = Object.keys(panelManifest) as PanelType[];
+// Hint-ordered keys first, then any manifest key not in the hint, in manifest order.
+const ORDERED_PANELS: PanelType[] = [
+  ...ALL_PANEL_TYPES.filter(pt => MANIFEST_PANEL_TYPES.includes(pt)),
+  ...MANIFEST_PANEL_TYPES.filter(pt => !ALL_PANEL_TYPES.includes(pt)),
+];
 
-/** The profile decides which panels exist; this list only fixes their order.
+/** The profile decides which panels exist; the manifest decides what can exist.
  *  A profile that registers no panels gets all of them, as before. */
 function availablePanelTypes(): PanelType[] {
   const registered = getConfig().panels;
-  if (!registered || registered.length === 0) return ALL_PANEL_TYPES;
-  return ALL_PANEL_TYPES.filter((pt) => registered.includes(pt));
+  if (!registered || registered.length === 0) return ORDERED_PANELS;
+  return ORDERED_PANELS.filter((pt) => registered.includes(pt));
 }
 
 function panelLabel(panelType: PanelType): string {
