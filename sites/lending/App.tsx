@@ -374,32 +374,6 @@ export default function App() {
         </div>
       </section>
 
-      {/* ── metric triplet ── */}
-      <div className="wrap" style={{ paddingBottom: 8 }}>
-        <div className="grid3">
-          {[
-            ["100%", "of monitored contacts reviewed", "coverage, not sampling"],
-            ["40+", "filings included", "across every licensed state"],
-            ["$0", "of evidence assembled by hand", "it exists as the work happens"],
-          ].map(([big, mid, small]) => (
-            <div key={big} className="pane" style={{ padding: "22px 24px" }}>
-              <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: 46,
-                  lineHeight: 1,
-                  color: "var(--oninv)",
-                }}
-              >
-                {big}
-              </div>
-              <div style={{ marginTop: 8, fontSize: 14, color: "var(--oninv)" }}>{mid}</div>
-              <div className="eyebrow eyebrow-on-navy" style={{ marginTop: 6 }}>{small}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* ── the inversion ── */}
       <Section>
         <h2 style={{ maxWidth: "26ch" }}>
