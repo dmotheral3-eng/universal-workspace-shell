@@ -62,7 +62,7 @@ const ROWS: Row[] = [
     qty: 200,
     perYear: 12,
     hrsEach: 0.08,
-    note: "sampled review at 3% of monitored contacts",
+    note: "sampled review of monitored contacts",
   },
   {
     key: "control-evidence",
