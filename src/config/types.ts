@@ -91,8 +91,15 @@ export type PanelType =
   | "Attestations";
 
 export interface WorkspaceConfig {
-  /** Which face the door wears. "spectrum" = the two-zone Read/Work face (D-LDSPECTRUM-1); absent = the panel workspace. */
-  face?: "spectrum";
+  /**
+   * Which face the door wears.
+   * "spectrum" = the two-zone Read/Work face (D-LDSPECTRUM-1).
+   * "semester" = the Semester kit's chrome — 62px icon rail, 52px header,
+   *   mono screen title — worn around the existing panel workspace (COS-1584 S4).
+   * absent = the panel workspace as it has always been. Adding a face here
+   *   changes nothing for a profile that does not declare one.
+   */
+  face?: "spectrum" | "semester";
   brand: BrandConfig;
   vocabulary: VocabularyConfig;
   panels: PanelType[];

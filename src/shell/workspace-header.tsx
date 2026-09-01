@@ -30,14 +30,19 @@ const ORDERED_PANELS: PanelType[] = [
 ];
 
 /** The profile decides which panels exist; the manifest decides what can exist.
- *  A profile that registers no panels gets all of them, as before. */
-function availablePanelTypes(): PanelType[] {
+ *  A profile that registers no panels gets all of them, as before.
+ *  Exported because the Semester face (src/faces/SemesterFace.tsx) builds its
+ *  rail from the same join — one derivation, not two lists that can drift. */
+export function availablePanelTypes(): PanelType[] {
   const registered = getConfig().panels;
   if (!registered || registered.length === 0) return ORDERED_PANELS;
   return ORDERED_PANELS.filter((pt) => registered.includes(pt));
 }
 
-function panelLabel(panelType: PanelType): string {
+/** The reader-facing name of a panel, in this profile's vocabulary.
+ *  Exported for the Semester face, which uses it for both rail labels and the
+ *  screen title so a panel is called one thing everywhere. */
+export function panelLabel(panelType: PanelType): string {
   const vocab = getConfig().vocabulary;
   switch (panelType) {
     case "InboxBoard": return "Inbox";
