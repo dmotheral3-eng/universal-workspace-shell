@@ -1,10 +1,11 @@
 {
+  "face": "semester",
   "brand": {
     "name": "BorrowWorks",
     "logoText": "BorrowWorks",
     "accent": "#1B3A63",
     "background": "#FFFFFF",
-    "mode": "light"
+    "mode": "dark"
   },
   "vocabulary": {
     "entity": "Book",

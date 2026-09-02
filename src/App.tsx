@@ -8,6 +8,7 @@ import { PathPanelRoute } from "@/shell/path-route";
 import { getAuthConfig } from "@/config";
 import { BorrowWorksApp } from "@/bw/bw-app";
 import { SpectrumApp } from "@/spectrum/spectrum-app";
+import { SemesterFace } from "@/faces/SemesterFace";
 import { getConfig } from "@/config";
 
 function AppInner() {
@@ -38,6 +39,23 @@ function AppInner() {
       <LawDogGate>
         <PopoutProvider openPopout={openPopout}>
           <SpectrumApp />
+        </PopoutProvider>
+      </LawDogGate>
+    );
+  }
+
+  /**
+   * The Semester face (COS-1584 S4): a profile that declares face="semester"
+   * wears the kit's chrome — 62px icon rail, 52px header, mono screen title —
+   * around the same panel workspace, the same gate and the same data doors.
+   * A profile that declares no face falls through to the branch below, which is
+   * byte-for-byte what it has always been.
+   */
+  if (getConfig().face === "semester") {
+    return (
+      <LawDogGate>
+        <PopoutProvider openPopout={openPopout}>
+          <SemesterFace />
         </PopoutProvider>
       </LawDogGate>
     );
