@@ -196,9 +196,15 @@ export function SemesterFace() {
       wordmark={config.brand.logoText}
       headerRight={<HeaderRight mode={mode} />}
     >
-      {/* The existing panel host, unchanged — drag, dock, tabs, pop-out. */}
+      {/* The existing panel host, unchanged — drag, dock, tabs, pop-out.
+          data-kit-mode is ruling (ii)'s only touch point in the app: the
+          generated [data-kit-mode] block sets the shadcn variables on this
+          element, and every panel below inherits them, so the workspace follows
+          the header's mode toggle without a single colour being named here.
+          The kit's own chrome is NOT in this subtree — it keeps styling itself
+          inline, which is ruling (i) and is unchanged. */}
       <PathPanelRoute />
-      <div className="flex h-full min-h-0 w-full">
+      <div data-kit-mode={mode} className="flex h-full min-h-0 w-full bg-background text-foreground">
         <CollapsedRail />
         <LayoutRenderer />
       </div>

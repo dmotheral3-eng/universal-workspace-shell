@@ -11,7 +11,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "dev:lending": "vite --config vite.lending.config.ts",
-    "build:lending": "tsc -b && vite build --config vite.lending.config.ts"
+    "build:lending": "tsc -b && vite build --config vite.lending.config.ts",
+    "predev": "node scripts/generate-kit-css.mjs",
+    "prebuild": "node scripts/generate-kit-css.mjs",
+    "predev:lending": "node scripts/generate-kit-css.mjs",
+    "prebuild:lending": "node scripts/generate-kit-css.mjs",
+    "pretest": "node scripts/generate-kit-css.mjs"
   },
   "dependencies": {
     "@centripetal/universal-ui": "git+https://github.com/dmotheral3-eng/universal-ui.git#1d92f6600fe48b48cefa38ebe53dadf598c9bd84",

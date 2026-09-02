@@ -153,7 +153,7 @@ export function getBrokerProofLayout(): WorkspaceLayout {
 }
 
 /**
- * LENDING — the book on the left, its evidence tabbed in the centre.
+ * LENDING — the book on the left, its evidence two-up beside it.
  *
  * Deliberately not in PRESET_NAMES, for the same reason BrokerProof is not:
  * every other preset opens panels the lending profile has no data path for, and
@@ -163,19 +163,54 @@ export function getBrokerProofLayout(): WorkspaceLayout {
  * The four evidence panels all wait on a book, so the Books list is the only
  * thing on screen with anything to show until one is picked — which is why it
  * gets its own column rather than a tab.
+ *
+ * DENSITY (Dave, 2026-09-01: the default "opens as two narrow columns and a dead
+ * field"). The old shape was one narrow list at 26% and ONE tab stack at 74%,
+ * which meant a single panel owned three-quarters of the screen and — since every
+ * evidence panel is empty until a book is picked — three-quarters of the screen
+ * was one centred sentence. Two changes fix that and neither invents a number the
+ * kit owns:
+ *
+ *   1. The list is CLAMPED to a master-list width rather than a percentage. At
+ *      26% it was 310px on a laptop and 560px on a wide monitor; the second
+ *      reads as a half-filled content column. It is now ~300px at any viewport.
+ *   2. The evidence side is a TWO-UP, so the width left over is divided between
+ *      two panels instead of pooled behind one. No region is left wider than a
+ *      panel, which was the actual complaint.
+ *
+ * Density is taken from the Semester command screens as a BAR, not as literals:
+ * there is no geometry number in this repo that belongs to the kit. The two
+ * numbers below are this shell's own layout — a master-list width and a split
+ * ratio — and the kit keeps 62/52/27/7.
  */
 export function getLendingClassicLayout(): WorkspaceLayout {
   const vocab = v();
   return {
-    root: createSplit("root", "horizontal", [
-      createLeaf("lending-left", [createTab("books", "Books", vocab.entityPlural)]),
-      createLeaf("lending-center", [
-        createTab("decisions", "Decisions", "Decisions"),
-        createTab("interactions", "Interactions", "Interactions"),
-        createTab("changes", "Changes", "Changes"),
-        createTab("attestations", "Attestations", "Attestations"),
-      ]),
-    ], [26, 74]),
+    root: createSplit(
+      "root",
+      "horizontal",
+      [
+        createLeaf("lending-left", [createTab("books", "Books", vocab.entityPlural)]),
+        createSplit(
+          "lending-evidence",
+          "horizontal",
+          [
+            createLeaf("lending-center", [
+              createTab("decisions", "Decisions", "Decisions"),
+              createTab("changes", "Changes", "Changes"),
+            ]),
+            createLeaf("lending-side", [
+              createTab("attestations", "Attestations", "Attestations"),
+              createTab("interactions", "Interactions", "Interactions"),
+            ]),
+          ],
+          [52, 48],
+        ),
+      ],
+      [22, 78],
+      // The list stays a list. The evidence side takes whatever is left.
+      [{ minPx: 260, maxPx: 320 }, null],
+    ),
     panelStates: {},
     collapsedPanels: [],
     poppedOutPanels: [],

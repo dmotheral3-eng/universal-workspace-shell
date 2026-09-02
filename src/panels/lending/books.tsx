@@ -44,7 +44,7 @@ export function BooksView({
               type="button"
               onClick={() => onSelect(b)}
               aria-current={isSelected ? "true" : undefined}
-              className="border-b px-3 py-2.5 text-left transition-colors hover:bg-black/[0.03]"
+              className="border-b px-3 py-2.5 text-left transition-colors hover:bg-accent"
               style={{
                 borderColor: LD.hairline,
                 background: isSelected ? LD.wash : undefined,

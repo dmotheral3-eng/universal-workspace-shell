@@ -105,8 +105,30 @@ function SplitRenderer({ split }: { split: LayoutSplit }) {
       ref={containerRef}
       className={`flex h-full w-full ${isHorizontal ? "flex-row" : "flex-col"}`}
     >
-      {split.children.map((child, index) => (
-        <div key={child.id} className="flex h-full w-full" style={{ flex: `0 0 ${split.sizes[index]}%` }}>
+      {split.children.map((child, index) => {
+        const clamp = split.clamps?.[index] ?? null;
+        // The clamp rides on the flex basis, so dragging the splitter still works
+        // and simply stops at the bound rather than being overridden by it.
+        const clampStyle = clamp
+          ? {
+              ...(clamp.minPx !== undefined
+                ? split.direction === "horizontal"
+                  ? { minWidth: clamp.minPx }
+                  : { minHeight: clamp.minPx }
+                : {}),
+              ...(clamp.maxPx !== undefined
+                ? split.direction === "horizontal"
+                  ? { maxWidth: clamp.maxPx }
+                  : { maxHeight: clamp.maxPx }
+                : {}),
+            }
+          : {};
+        return (
+        <div
+          key={child.id}
+          className="flex h-full w-full"
+          style={{ flex: `0 0 ${split.sizes[index]}%`, ...clampStyle }}
+        >
           <div className="flex-1 overflow-hidden">
             <NodeRenderer node={child} />
           </div>
@@ -122,7 +144,8 @@ function SplitRenderer({ split }: { split: LayoutSplit }) {
             />
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

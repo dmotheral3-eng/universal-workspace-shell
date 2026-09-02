@@ -1,0 +1,76 @@
+/**
+ * GENERATED FILE — DO NOT EDIT.
+ *
+ * Written by scripts/generate-kit-css.mjs from @centripetal/universal-ui/tokens,
+ * theme "command". Edit the generator or the kit, never this file: the next
+ * predev/prebuild overwrites anything typed here.
+ *
+ * SOURCE BLOCK MD5: 071530ffe93af6471edbeca3193ea0cb
+ * lifted from dmotheral3-eng/centripetal-semester src/App.jsx
+ * lines 20-34, blob 3083bf5d3c56569a254aac5a9de081afef3ab451
+ * 585 bytes, lifted 2026-08-30T03:01Z
+ *
+ * HASH DISCIPLINE: if fn_semester_theme_drift's banked md5 disagrees with the
+ * md5 above, THIS FILE IS THE STALE ONE BY DEFINITION. Regenerate before
+ * treating anything in it as evidence.
+ */
+
+[data-kit-mode="command"] {
+
+  /* shadcn surface set — the panels inside the kit's chrome */
+  --background: #0A0F0D;
+  --foreground: #E8EDEA;
+  --card: #0F1612;
+  --card-foreground: #E8EDEA;
+  --popover: #0F1612;
+  --popover-foreground: #E8EDEA; /* DERIVED: text, the card/popover pair share one ink */
+  --primary: #2DD4A7;
+  --primary-foreground: #0A0F0D; /* DERIVED: bg, for contrast on an accent fill */
+  --secondary: #141D19; /* DERIVED: elev, the raised surface is the secondary fill */
+  --secondary-foreground: #E8EDEA; /* DERIVED: text */
+  --muted: #141D19;
+  --muted-foreground: #7A8F85;
+  --accent: #212926; /* DERIVED: elev + 6% text — hover tint, NOT the kit accent */
+  --accent-foreground: #E8EDEA; /* DERIVED: text */
+  --destructive: #E84040;
+  --destructive-foreground: #0A0F0D; /* DERIVED: bg, for contrast on a red fill */
+  --border: #1E2B26;
+  --input: #1E2B26;
+  --ring: #2DD4A7;
+  --chart-1: #2DD4A7; /* DERIVED: the kit's four track colours, in order */
+  --chart-2: #5EA8F5;
+  --chart-3: #2DD4A7;
+  --chart-4: #F5A623;
+  --chart-5: #E84040;
+  --sidebar: #0F1612; /* DERIVED: surface, the rail sits on the card plane */
+  --sidebar-foreground: #E8EDEA; /* DERIVED: text */
+  --sidebar-primary: #2DD4A7; /* DERIVED: accent */
+  --sidebar-primary-foreground: #0A0F0D; /* DERIVED: bg */
+  --sidebar-accent: #212926; /* DERIVED: elev + 6% text — same hover tint */
+  --sidebar-accent-foreground: #E8EDEA; /* DERIVED: text */
+  --sidebar-border: #1E2B26; /* DERIVED: border */
+  --sidebar-ring: #2DD4A7; /* DERIVED: accent */
+
+  /* the LD panel palette (see the generator's note on the 2026-08-09 ruling) */
+  --ld-ground: #0F1612; /* DERIVED: surface — the panel body is a card plane */
+  --ld-ink: #E8EDEA; /* DERIVED: text */
+  --ld-ink-muted: #7A8F85; /* DERIVED: dim */
+  --ld-ink-faint: #53625b; /* DERIVED: dim + 35% bg — one step behind dim */
+  --ld-hairline: #1E2B26; /* DERIVED: border */
+  --ld-wash: #141D19; /* DERIVED: elev */
+  --ld-accent: #2DD4A7; /* DERIVED: accent */
+
+  /* status pill tones */
+  --ld-tone-neutral-bg: #1e2722; /* DERIVED: surface + 14% neutral base */
+  --ld-tone-neutral-fg: #96a79e; /* DERIVED: neutral base + 25% text */
+  --ld-tone-neutral-border: #2f3a35; /* DERIVED: surface + 30% neutral base */
+  --ld-tone-positive-bg: #133127; /* DERIVED: surface + 14% positive base */
+  --ld-tone-positive-fg: #5cdab8; /* DERIVED: positive base + 25% text */
+  --ld-tone-positive-border: #184f3f; /* DERIVED: surface + 30% positive base */
+  --ld-tone-attention-bg: #2f2a14; /* DERIVED: surface + 14% attention base */
+  --ld-tone-attention-fg: #f2b855; /* DERIVED: attention base + 25% text */
+  --ld-tone-attention-border: #544117; /* DERIVED: surface + 30% attention base */
+  --ld-tone-critical-bg: #2d1c18; /* DERIVED: surface + 14% critical base */
+  --ld-tone-critical-fg: #e86b6b; /* DERIVED: critical base + 25% text */
+  --ld-tone-critical-border: #502320; /* DERIVED: surface + 30% critical base */
+}
