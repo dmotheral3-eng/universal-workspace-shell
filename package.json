@@ -14,7 +14,7 @@
     "build:lending": "tsc -b && vite build --config vite.lending.config.ts"
   },
   "dependencies": {
-    "@centripetal/semester-kit": "github:dmotheral3-eng/semester-kit#e25acaf85747c92ebaf675047607fb4bb290f69d",
+    "@centripetal/universal-ui": "git+https://github.com/dmotheral3-eng/universal-ui.git#1d92f6600fe48b48cefa38ebe53dadf598c9bd84",
     "@hookform/resolvers": "^5.2.2",
     "@tailwindcss/vite": "^4.2.1",
     "class-variance-authority": "^0.7.1",
