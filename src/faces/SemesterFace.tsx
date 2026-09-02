@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import Shell from "@centripetal/semester-kit/Shell";
-import type { SemesterMode, SemesterNavItem } from "@centripetal/semester-kit/Shell";
-import { THEMES } from "@centripetal/semester-kit/tokens";
+import Shell from "@centripetal/universal-ui/Shell";
+import type { SemesterMode, SemesterNavItem } from "@centripetal/universal-ui/Shell";
+import { THEMES } from "@centripetal/universal-ui/tokens";
 import { Check, LogOut, PanelLeft, UserCircle } from "lucide-react";
 import { getAuthConfig, getConfig, type PanelType } from "@/config";
 import { useLayout } from "@/shell";
