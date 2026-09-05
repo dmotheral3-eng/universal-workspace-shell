@@ -8,7 +8,9 @@ import {
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ className?: string }>; label: string; group: "core" | "legal" | "lending" | "chat" }> = {
+/** Icon, label and grouping per panel. Exported so the Semester face joins the
+ *  profile's panel list to THIS registry rather than carrying its own icons. */
+export const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ className?: string }>; label: string; group: "core" | "legal" | "lending" | "chat" }> = {
   WhereWeAre:     { icon: Route,           label: "Where",          group: "core" },
   InboxBoard:     { icon: Inbox,           label: "Inbox",          group: "core" },
   EntityList:     { icon: List,            label: "Matters",        group: "core" },
@@ -36,8 +38,10 @@ const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ className?: st
   Attestations:   { icon: BadgeCheck,       label: "Attestations",   group: "lending" },
 };
 
-/** Show this subset in the rail by default — keep it tight. */
-const RAIL_ORDER: PanelType[] = [
+/** Show this subset in the rail by default — keep it tight.
+ *  Exported as an ORDERING HINT for the Semester face, which appends anything
+ *  the profile registers that is not named here rather than dropping it. */
+export const RAIL_ORDER: PanelType[] = [
   // FIRST, deliberately: where-are-we is the question the shell should answer
   // before any of the per-entity surfaces (D-WHEREWEARE-1).
   "WhereWeAre",
