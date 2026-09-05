@@ -12,7 +12,7 @@ name: Claude Dispatch
 #   dispatch-callback function (authenticated with a per-run GitHub OIDC token), and
 #   that function opens the DRAFT PR server-side using the Vault dispatch PAT. Branch
 #   protection stays untouched; Actions can never approve or merge.
-# - Blocked runs push .dispatch/QUESTION.md on the branch; the callback opens a
+# - Blocked runs push .dispatch/questions/<dispatch-id>.md on the branch; the callback opens a
 #   "QUESTION:" draft PR so a human can rule. Never stop empty-handed.
 
 on:
@@ -97,7 +97,7 @@ jobs:
               4. git push origin ${{ steps.vars.outputs.branch }}
 
             NEVER STOP EMPTY-HANDED. If you are blocked, cannot complete the task, or need
-            a human ruling: write the question and full context to .dispatch/QUESTION.md,
+            a human ruling: write the question and full context to .dispatch/questions/${{ inputs.dispatch_id }}.md,
             then run steps 1, 3, 4 to push branch ${{ steps.vars.outputs.branch }} carrying
             that file. A QUESTION draft PR will open so a human can rule.
 
@@ -134,7 +134,8 @@ jobs:
           IS_Q="false"
           if gh api "repos/$REPO/git/ref/heads/$BRANCH" >/dev/null 2>&1; then
             BRANCH_OUT="$BRANCH"
-            if gh api "repos/$REPO/contents/.dispatch/QUESTION.md?ref=$BRANCH" >/dev/null 2>&1; then
+            if gh api "repos/$REPO/contents/.dispatch/questions/$DISPATCH_ID.md?ref=$BRANCH" >/dev/null 2>&1 \
+               || gh api "repos/$REPO/contents/.dispatch/QUESTION.md?ref=$BRANCH" >/dev/null 2>&1; then
               IS_Q="true"
             fi
           fi
