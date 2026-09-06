@@ -205,6 +205,9 @@ export function SemesterFace() {
           inline, which is ruling (i) and is unchanged. */}
       <PathPanelRoute />
       <div data-kit-mode={mode} className="flex h-full min-h-0 w-full bg-background text-foreground">
+      {/* The existing panel host, unchanged — drag, dock, tabs, pop-out. */}
+      <PathPanelRoute />
+      <div className="flex h-full min-h-0 w-full">
         <CollapsedRail />
         <LayoutRenderer />
       </div>
