@@ -183,6 +183,42 @@ Object.assign(BROKER_RESOURCES, {
     maxLimit: 500,
     bookScope: "book_id",
   },
+  /**
+   * THIRD-PARTY RISK — the two vendor resources (D-BWVENDOR-1, BOR-29).
+   *
+   * TENANT-LEVEL, NOT BOOK-LEVEL, AND THAT IS THE HONEST SHAPE. A vendor is a
+   * counterparty the whole tenant depends on; it carries no book column upstream,
+   * and inventing one to satisfy the book gate would be faking a scope the data
+   * does not have. They sit beside `lending_view_registry` as the named tenant-only
+   * exceptions, and the test that enumerates the lending resources names them so a
+   * third cannot be added quietly.
+   *
+   * `schema: null` — unlike every other lending resource these are PUBLIC views on
+   * the Cube (bw_v_*), not objects in the `lending` schema. Verified live before
+   * this entry was written: both exist, both are readable, 7 and 42 rows.
+   */
+  lending_vendors: {
+    table: "bw_v_vendor_book",
+    schema: null,
+    tenantColumn: "tenant_id",
+    columns: ["tenant_id", "vendor_id", "name", "tier", "amount", "done", "total", "status"],
+    entitlement: LENDING_ENTITLEMENT,
+    filters: {},
+    order: "name.asc",
+    maxLimit: 200,
+  },
+  lending_vendor_checklist: {
+    table: "bw_v_vendor_checklist",
+    schema: null,
+    tenantColumn: "tenant_id",
+    columns: ["tenant_id", "vendor_id", "title", "status", "sealed", "detail", "fact_key", "recorded_at"],
+    entitlement: LENDING_ENTITLEMENT,
+    // One narrowing only, by name. `vendor` is the sole key a caller may send;
+    // anything else is refused by the handler rather than ignored.
+    filters: { vendor: "vendor_id" },
+    order: "recorded_at.asc",
+    maxLimit: 500,
+  },
 } satisfies Record<string, BrokerResource>);
 
 export function lookupResource(name: string): BrokerResource | null {

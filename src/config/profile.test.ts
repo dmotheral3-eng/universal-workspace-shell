@@ -40,6 +40,7 @@ describe("profile selection", () => {
       "Changes",
       "Decisions",
       "Interactions",
+      "Vendors",
     ]);
   });
 

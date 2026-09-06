@@ -13,6 +13,7 @@
     "itemPlural": "Records"
   },
   "panels": [
+    "Vendors",
     "Books",
     "Decisions",
     "Interactions",
