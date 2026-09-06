@@ -95,6 +95,10 @@
     "export": "SubpoenasPanel",
     "module": "@/panels/legal/subpoenas"
   },
+  "Vendors": {
+    "export": "VendorsPanel",
+    "module": "@/panels/lending/vendors"
+  },
   "WhereWeAre": {
     "export": "WhereWeArePanel",
     "module": "@/panels/whereweare"

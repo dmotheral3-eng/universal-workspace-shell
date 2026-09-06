@@ -157,3 +157,71 @@ export async function listAttestations(bookId: string): Promise<LendingAttestati
     correctsId: str(r.corrects_id),
   }));
 }
+
+/* ── Third-party risk (D-BWVENDOR-1) ──────────────────────────────────────────
+ *
+ * Tenant-level, not book-level: a vendor is a counterparty the whole tenant
+ * depends on. So there is no `bookParam` here and no book id anywhere — the
+ * broker scopes these on the tenant alone, which is the honest shape of the
+ * upstream data rather than a gap.
+ */
+
+export interface LendingVendor {
+  /** Synthesised from vendor_id so EvidenceTable has its row key. */
+  id: string;
+  vendorId: string;
+  name: string;
+  tier: string | null;
+  /** Pre-formatted upstream (e.g. "$1.4M") — printed as given, never re-derived. */
+  amount: string | null;
+  done: number;
+  total: number;
+  status: string | null;
+}
+
+export interface LendingVendorChecklistItem {
+  id: string;
+  vendorId: string;
+  title: string;
+  /** The view's own word — COMPLETE / LAPSED / NOT STARTED. Never softened. */
+  status: string | null;
+  sealed: boolean;
+  detail: string | null;
+  factKey: string | null;
+  recordedAt: string | null;
+}
+
+const int = (v: unknown): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+
+export async function listVendors(): Promise<LendingVendor[]> {
+  const rows = await brokerGet<Row>("lending_vendors");
+  return rows.map((r) => ({
+    id: req(r.vendor_id),
+    vendorId: req(r.vendor_id),
+    name: str(r.name) ?? req(r.vendor_id),
+    tier: str(r.tier),
+    amount: str(r.amount),
+    done: int(r.done),
+    total: int(r.total),
+    status: str(r.status),
+  }));
+}
+
+export async function listVendorChecklist(vendorId: string): Promise<LendingVendorChecklistItem[]> {
+  const rows = await brokerGet<Row>("lending_vendor_checklist", { vendor: vendorId });
+  return rows.map((r, i) => ({
+    // The view carries no key of its own, so the row identity is the vendor plus
+    // its position in the server's fixed order. Not shown; only used for React.
+    id: `${req(r.vendor_id)}:${i}`,
+    vendorId: req(r.vendor_id),
+    title: str(r.title) ?? "—",
+    status: str(r.status),
+    sealed: r.sealed === true,
+    detail: str(r.detail),
+    factKey: str(r.fact_key),
+    recordedAt: str(r.recorded_at),
+  }));
+}
