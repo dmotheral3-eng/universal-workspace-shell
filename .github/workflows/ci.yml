@@ -1,0 +1,67 @@
+name: CI
+
+# WHY THIS EXISTS (BOR-122, 2026-09-07).
+#
+# main did not build for ~24 hours and nothing said so. #36 merged an unclosed
+# JSX div into src/faces/SemesterFace.tsx; `npm run build` failed from that
+# moment on. There was no check that builds this repo, so the only build signal
+# was Vercel's — which reports per PR, was already failing on every open PR
+# because of this very commit, and therefore carried no information at all.
+#
+# It also disguised itself: the three bundle tests build the app in order to
+# inspect it, so they failed with an esbuild error rather than an assertion.
+# That reads as toolchain noise, and a seat that correctly proved "these fail on
+# main too" could wrongly conclude "so they are not my problem."
+#
+# THE POINT OF THIS FILE IS THE `push: main` TRIGGER. A PR-only check would not
+# have caught it either, since the breakage arrived through a merge. Whatever
+# else is added here later, that trigger is the mechanism.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Read-only: this workflow proves things, it never changes them.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: typecheck · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Pinned to the version the suite was last verified green on rather
+          # than to "latest", so a runner image bump cannot quietly change what
+          # this check means. The repo declares no engines field; if one is
+          # added, this should follow it.
+          node-version: '24'
+          cache: npm
+
+      - name: Install (locked)
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # Runs before the build because the bundle tests build the app themselves:
+      # if the tree cannot compile, this is where it surfaces with a real error
+      # rather than as an esbuild failure three tests deep.
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Build (lending profile)
+        run: npm run build:lending
