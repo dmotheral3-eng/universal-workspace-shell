@@ -11,17 +11,34 @@ import type { ReactNode } from "react";
  * outlook headline figure (`LD.accent`, consumed only by `LdAccentFigure`). If a
  * second element ever wants it, the answer is no — pick which one earns it.
  *
- * The colours are literal hex, not theme tokens, on purpose: these panels must
- * read the same whether the shell around them is running light or dark.
+ * ⟦AMENDED 2026-09-01, ruling (ii) of COS-1584, and the amendment is scoped so the
+ * clause above still holds where it was aimed. The original text read: "The colours
+ * are literal hex, not theme tokens, on purpose: these panels must read the same
+ * whether the shell around them is running light or dark." That reasoning was
+ * written when the only thing around these panels was the shadcn shell, and it is
+ * still exactly right there — the :root values in src/index.css carry these same
+ * seven hexes byte-for-byte, so every profile that is not wearing the semester face
+ * renders identically to before this edit.
+ *
+ * What changed is that a panel can now sit inside the KIT's chrome, which is
+ * near-black. Dave, 2026-09-01: dark panels inside dark chrome, "never a white
+ * void". A literal hex cannot answer to two grounds, so the values move into CSS
+ * variables and the generated [data-kit-mode] blocks override them for that subtree
+ * ONLY. The panels still do not follow the shell's light/dark toggle; they follow
+ * the KIT's mode, which is a different and narrower thing.
+ *
+ * The values below are therefore not a second source of truth: the light defaults
+ * live at :root in index.css, and the kit overrides are GENERATED from the kit's
+ * own token block by scripts/generate-kit-css.mjs. Nothing here is typed twice.⟧
  */
 export const LD = {
-  ground: "#FFFFFF",
-  ink: "#111113",
-  inkMuted: "#6E7076",
-  inkFaint: "#9A9CA3",
-  hairline: "#EAEAEC",
-  wash: "#FAFAFB",
-  accent: "#5E6AD2",
+  ground: "var(--ld-ground)",
+  ink: "var(--ld-ink)",
+  inkMuted: "var(--ld-ink-muted)",
+  inkFaint: "var(--ld-ink-faint)",
+  hairline: "var(--ld-hairline)",
+  wash: "var(--ld-wash)",
+  accent: "var(--ld-accent)",
 } as const;
 
 export const ldText = "font-sans text-[13px] leading-[1.5]";
@@ -225,11 +242,14 @@ export function LdAccentFigure({ children }: { children: ReactNode }) {
 
 export type LdTone = "neutral" | "positive" | "attention" | "critical";
 
+/** Same amendment as LD above: light values at :root, kit values generated. A pill
+ *  is the one element in these panels that carries colour even with no accent, so
+ *  leaving it on light hex would put four bright chips on a near-black panel. */
 const TONES: Record<LdTone, { bg: string; fg: string; border: string }> = {
-  neutral: { bg: "#F5F5F6", fg: "#5C5F66", border: "#E7E7EA" },
-  positive: { bg: "#F1F9F4", fg: "#1B7A4B", border: "#DCEFE3" },
-  attention: { bg: "#FDF7EC", fg: "#8A6216", border: "#F2E4C8" },
-  critical: { bg: "#FDF3F3", fg: "#A03030", border: "#F3DADA" },
+  neutral: { bg: "var(--ld-tone-neutral-bg)", fg: "var(--ld-tone-neutral-fg)", border: "var(--ld-tone-neutral-border)" },
+  positive: { bg: "var(--ld-tone-positive-bg)", fg: "var(--ld-tone-positive-fg)", border: "var(--ld-tone-positive-border)" },
+  attention: { bg: "var(--ld-tone-attention-bg)", fg: "var(--ld-tone-attention-fg)", border: "var(--ld-tone-attention-border)" },
+  critical: { bg: "var(--ld-tone-critical-bg)", fg: "var(--ld-tone-critical-fg)", border: "var(--ld-tone-critical-border)" },
 };
 
 /** Unknown values are a certainty, not an edge case — a status vocabulary can be

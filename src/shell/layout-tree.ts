@@ -9,12 +9,24 @@ export interface LayoutLeaf {
   activeTabIndex: number;
 }
 
+/** An optional pixel clamp for one child of a split. A master list wants to be
+ *  about 300px at every viewport, which a percentage cannot express: 22% is
+ *  310px on a laptop and 560px on a wide monitor, and the second one reads as a
+ *  half-empty content column rather than a list. */
+export interface SizeClamp {
+  minPx?: number;
+  maxPx?: number;
+}
+
 export interface LayoutSplit {
   type: "split";
   id: string;
   direction: SplitDirection;
   children: LayoutNode[];
   sizes: number[];
+  /** Parallel to `children`; entries may be null. Absent = no clamp anywhere,
+   *  which is every pre-existing preset. */
+  clamps?: (SizeClamp | null)[];
 }
 
 export type LayoutNode = LayoutLeaf | LayoutSplit;
@@ -58,10 +70,18 @@ export function createSplit(
   id: string,
   direction: SplitDirection,
   children: LayoutNode[],
-  sizes?: number[]
+  sizes?: number[],
+  clamps?: (SizeClamp | null)[]
 ): LayoutSplit {
   const defaultSizes = children.map(() => 100 / children.length);
-  return { type: "split", id, direction, children, sizes: sizes ?? defaultSizes };
+  return {
+    type: "split",
+    id,
+    direction,
+    children,
+    sizes: sizes ?? defaultSizes,
+    ...(clamps ? { clamps } : {}),
+  };
 }
 
 export function createTab(id: string, panelType: PanelType, title: string): PanelTab {
