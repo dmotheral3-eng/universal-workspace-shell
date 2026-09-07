@@ -20,6 +20,7 @@
  */
 
 import type { BrokerEnv } from "./env.js";
+import { meterAppAction } from "./meter.js";
 import { lookupResource, type BrokerResource } from "./resources.js";
 import {
   entitledBookSlugs,
@@ -256,6 +257,24 @@ export async function handleCubeRequest(
     log(`tenant_bleed_blocked resource=${name} dropped=${rows.length - scoped.length}`);
   }
 
+  // 9. METER THE ACT (BOR-70). After the read succeeded, never before: an action
+  //    that refused is not an action the customer took. Awaited rather than
+  //    fire-and-forget because a serverless invocation can be frozen the moment
+  //    the response is written, and a dropped event is exactly the divergence
+  //    this meter exists to prevent. It cannot throw and it cannot bill.
+  await meterAppAction(
+    {
+      tenantId: grant.tenantId,
+      surface: "/api/cube",
+      handler: "handleCubeRequest",
+      method: "GET",
+      resource: name,
+      refId: name,
+      evidence: `brokered read returned ${scoped.length} row(s) for resource ${name}`,
+    },
+    deps
+  );
+
   return {
     status: 200,
     body: { resource: name, tenant: grant.tenantId, rows: scoped },
@@ -429,6 +448,23 @@ export async function handleDecisionWrite(
     log("decision_write_tenant_mismatch");
     return refuse(502, "upstream_error");
   }
+
+  // METER THE ACT (BOR-70). This is the only write on the surface and therefore
+  // the strongest candidate for what a buyer is actually paying for — but its
+  // mapping row is deliberately UNRULED, so fn_meter_app_action returns
+  // `unruled_action` and charges nothing until Dave sets an action_key.
+  await meterAppAction(
+    {
+      tenantId: grant.tenantId,
+      surface: "/api/cube",
+      handler: "handleDecisionWrite",
+      method: "POST",
+      resource: name,
+      refId: typeof written.id === "string" ? written.id : subjectRef,
+      evidence: `decision recorded: ${action} on ${subjectKind}/${subjectRef} under rule ${ruleVersion}`,
+    },
+    deps
+  );
 
   return { status: 201, body: { row: written }, headers: JSON_HEADERS };
 }
