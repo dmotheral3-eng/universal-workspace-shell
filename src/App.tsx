@@ -1,3 +1,7 @@
+import { useEffect, useState } from "react";
+import { Refine } from "@refinedev/core";
+import type { IResourceItem } from "@refinedev/core";
+
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LayoutProvider, LayoutRenderer, WorkspaceHeader, CollapsedRail, CommandPalette } from "@/shell";
 import { PopoutProvider } from "@/shell/popout-context";
@@ -10,6 +14,8 @@ import { BorrowWorksApp } from "@/bw/bw-app";
 import { SpectrumApp } from "@/spectrum/spectrum-app";
 import { SemesterFace } from "@/faces/SemesterFace";
 import { getConfig } from "@/config";
+import { loadResourcesFromRegistry } from "@/data/refine-resources";
+import { pendingDataProvider } from "@/data/refine-providers-pending";
 
 function AppInner() {
   const { openPopout } = usePopoutManager();
@@ -79,11 +85,69 @@ function AppInner() {
   );
 }
 
+/**
+ * Refine sits UNDER the shell, not around it (BOR-129).
+ *
+ * The nav-rail, the layout tree, the command palette and every face keep their
+ * own chrome and their own routing; `<Refine>` is mounted beneath them purely
+ * so the hooks — useTable / useShow / useMany / useForm / useLogList / useCan —
+ * have a context to read. Nothing in this commit calls one yet, which is why
+ * the app must render byte-for-byte as it did before: if anything moved on
+ * screen, the mount is wrong.
+ *
+ * `resources` are fetched, never written down — see refine-resources.ts. They
+ * start empty and arrive a tick later; a profile with no lending registry (or
+ * a signed-out one) simply keeps the empty list, which is the honest answer for
+ * a surface that has no rail of its own.
+ *
+ * ONLY `dataProvider` IS PASSED HERE, AND THAT IS A FINDING, NOT AN OMISSION.
+ * BOR-129 as written asks for all four props at once. Mounted that way it does
+ * not survive a page load: `<Refine>` CALLS `authProvider.check()` itself on
+ * mount, so a not-yet-built auth provider throws on every render — observed
+ * live at localhost:5200 before this was changed ("Unhandled Error in check:
+ * refine always expects a resolved promise"). A provider prop is not inert; the
+ * ones Refine drives on its own have to arrive WITH their implementations.
+ * `dataProvider` is required by the type and is only ever reached through a
+ * hook, and no hook is wired yet — so it can hold a loud stub for one commit.
+ * authProvider lands in BOR-131, accessControl in BOR-132, auditLog in BOR-133.
+ */
+function RefineHost({ children }: { children: React.ReactNode }) {
+  const [resources, setResources] = useState<IResourceItem[]>([]);
+
+  useEffect(() => {
+    let live = true;
+    loadResourcesFromRegistry().then((r) => {
+      if (live) setResources(r);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return (
+    <Refine
+      dataProvider={pendingDataProvider}
+      resources={resources}
+      options={{
+        mutationMode: "pessimistic",
+        disableTelemetry: true,
+        // The shell owns the URL. Refine must not also write to it, or the two
+        // routers fight over the address bar.
+        syncWithLocation: false,
+      }}
+    >
+      {children}
+    </Refine>
+  );
+}
+
 export function App() {
   return (
     <TooltipProvider>
       <LayoutProvider>
-        <AppInner />
+        <RefineHost>
+          <AppInner />
+        </RefineHost>
       </LayoutProvider>
     </TooltipProvider>
   );
