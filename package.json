@@ -21,7 +21,9 @@
   "dependencies": {
     "@centripetal/universal-ui": "git+https://github.com/dmotheral3-eng/universal-ui.git#1d92f6600fe48b48cefa38ebe53dadf598c9bd84",
     "@hookform/resolvers": "^5.2.2",
+    "@refinedev/core": "^5.0.12",
     "@tailwindcss/vite": "^4.2.1",
+    "@tanstack/react-query": "^5.102.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
