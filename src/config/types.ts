@@ -88,7 +88,12 @@ export type PanelType =
   | "Decisions"
   | "Interactions"
   | "Changes"
-  | "Attestations";
+  | "Attestations"
+  // third-party risk — tenant-level, not book-level (D-BWVENDOR-1). It was in
+  // the panel manifest and the lending-app profile but missing HERE, so
+  // `Record<PanelType, …>` tables could not notice it was absent from them —
+  // which is how the signed-in lending app went blank (BOR-139).
+  | "Vendors";
 
 export interface WorkspaceConfig {
   /**
