@@ -4,7 +4,7 @@ import {
   List, Home, Table, FileText, MessageSquare, GitBranch,
   BarChart3, FolderOpen, LayoutDashboard, Grid3X3,
   Users, Tag, PiggyBank, Gavel, Calculator, Target, ScrollText, Route,
-  Library, Scale, PhoneCall, History, BadgeCheck, Inbox, BookOpen,
+  Library, Scale, PhoneCall, History, BadgeCheck, Inbox, BookOpen, Building2,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -36,6 +36,7 @@ export const PANEL_META: Record<PanelType, { icon: React.ComponentType<{ classNa
   Interactions:   { icon: PhoneCall,        label: "Interactions",   group: "lending" },
   Changes:        { icon: History,          label: "Changes",        group: "lending" },
   Attestations:   { icon: BadgeCheck,       label: "Attestations",   group: "lending" },
+  Vendors:        { icon: Building2,        label: "Vendors",        group: "lending" },
 };
 
 /** Show this subset in the rail by default — keep it tight.
@@ -57,6 +58,9 @@ export const RAIL_ORDER: PanelType[] = [
   "RecoveryOutlook",
   "Ledger",
   "MasterCaseDoc",
+  // Before Books, matching the lending-app profile: the vendor book is the
+  // first thing a TPRM operator opens (D-BWVENDOR-1).
+  "Vendors",
   "Books",
   "Decisions",
   "Interactions",

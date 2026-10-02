@@ -70,6 +70,7 @@ export function panelLabel(panelType: PanelType): string {
     case "Interactions": return "Interactions";
     case "Changes": return "Changes";
     case "Attestations": return "Attestations";
+    case "Vendors": return "Vendors";
   }
 }
 
