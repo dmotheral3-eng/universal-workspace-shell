@@ -22,6 +22,7 @@
 import type { BrokerEnv } from "./env.js";
 import { meterAppAction } from "./meter.js";
 import { lookupResource, type BrokerResource } from "./resources.js";
+import { handleWrite } from "./write.js";
 import {
   entitledBookSlugs,
   isEntitled,
@@ -64,13 +65,21 @@ export interface BrokerDeps {
  */
 const SAFE_VALUE = /^[A-Za-z0-9_:@+\-. ]{1,128}$/;
 
+/**
+ * A row id is narrower than a filter value: no spaces, no dots, no `@` — a uuid
+ * or a short key. It is interpolated into `in.(…)`, where a comma or a paren
+ * would be operator syntax.
+ */
+const SAFE_ID = /^[A-Za-z0-9_:-]{1,64}$/;
+const MAX_IDS = 100;
+
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
   // A tenant-scoped read must never sit in a shared cache.
   "cache-control": "no-store",
 };
 
-function refuse(status: number, error: string): BrokerResponse {
+export function refuse(status: number, error: string): BrokerResponse {
   return { status, body: { error }, headers: JSON_HEADERS };
 }
 
@@ -83,7 +92,7 @@ export function resourceNameFromPath(pathname: string): string | null {
   return rest.length === 1 ? rest[0] : null;
 }
 
-function bearerFrom(headers: { get(name: string): string | null }): string | null {
+export function bearerFrom(headers: { get(name: string): string | null }): string | null {
   const raw = headers.get("authorization") ?? headers.get("Authorization");
   if (!raw) return null;
   const match = /^Bearer\s+(.+)$/i.exec(raw.trim());
@@ -126,6 +135,24 @@ export function buildCubeQuery(
     params.set(column, `eq.${value}`);
   }
 
+  // Row addressing (BOR-130). Only where the resource declares an id column,
+  // and always UNDER the tenant filter set above — never instead of it.
+  const id = callerParams.get("id");
+  const ids = callerParams.get("ids");
+  if ((id !== null && id !== "") || (ids !== null && ids !== "")) {
+    if (!resource.idColumn) return { error: "bad_filter" };
+    if (id !== null && id !== "") {
+      if (!SAFE_ID.test(id)) return { error: "bad_filter" };
+      params.set(resource.idColumn, `eq.${id}`);
+    } else {
+      const list = (ids ?? "").split(",").filter(Boolean);
+      if (list.length === 0 || list.length > MAX_IDS || !list.every((v) => SAFE_ID.test(v))) {
+        return { error: "bad_filter" };
+      }
+      params.set(resource.idColumn, `in.(${list.join(",")})`);
+    }
+  }
+
   if (resource.order) params.set("order", resource.order);
 
   const asked = Number(callerParams.get("limit"));
@@ -141,17 +168,20 @@ export async function handleCubeRequest(
 ): Promise<BrokerResponse> {
   const log = deps.log ?? (() => undefined);
 
-  // 1. Reads, and exactly ONE write.
+  // 1. Reads, and the writes the write allowlist names.
   //
   //    This used to be reads-only, with the note that "a write path would need
-  //    its own ruling about who may mutate a tenant's rows." D-BWUI-1 is that
-  //    ruling, and it is deliberately the narrowest one that can exist: a single
-  //    resource, append-only, where the caller supplies a verdict and a reason
-  //    and NOTHING else. Identity, tenant and the book gate are all re-derived
-  //    server-side exactly as they are for a read — see handleDecisionWrite.
+  //    its own ruling about who may mutate a tenant's rows." D-BWUI-1 was the
+  //    first such ruling: the decision log, append-only — see
+  //    handleDecisionWrite. BOR-130 is the second, and it is the general door:
+  //    a resource is writable only if `BROKER_WRITES` names it, and the change
+  //    itself is judged on the Cube, not here — see ./write.ts. POST is still a
+  //    404 on every resource neither of those names.
   const method = req.method.toUpperCase();
   if (method === "POST") {
-    return handleDecisionWrite(req, deps);
+    const target = resourceNameFromPath(new URL(req.url).pathname);
+    if (target === "lending_decision_log") return handleDecisionWrite(req, deps);
+    return handleWrite(req, deps);
   }
   if (method !== "GET") {
     return refuse(405, "method_not_allowed");

@@ -15,7 +15,7 @@ import { SpectrumApp } from "@/spectrum/spectrum-app";
 import { SemesterFace } from "@/faces/SemesterFace";
 import { getConfig } from "@/config";
 import { loadResourcesFromRegistry } from "@/data/refine-resources";
-import { pendingDataProvider } from "@/data/refine-providers-pending";
+import { brokerDataProvider } from "@/data/refine-data-provider";
 
 function AppInner() {
   const { openPopout } = usePopoutManager();
@@ -107,8 +107,7 @@ function AppInner() {
  * live at localhost:5200 before this was changed ("Unhandled Error in check:
  * refine always expects a resolved promise"). A provider prop is not inert; the
  * ones Refine drives on its own have to arrive WITH their implementations.
- * `dataProvider` is required by the type and is only ever reached through a
- * hook, and no hook is wired yet — so it can hold a loud stub for one commit.
+ * `dataProvider` is the broker-backed one from BOR-130 (refine-data-provider.ts).
  * authProvider lands in BOR-131, accessControl in BOR-132, auditLog in BOR-133.
  */
 function RefineHost({ children }: { children: React.ReactNode }) {
@@ -126,7 +125,7 @@ function RefineHost({ children }: { children: React.ReactNode }) {
 
   return (
     <Refine
-      dataProvider={pendingDataProvider}
+      dataProvider={brokerDataProvider}
       resources={resources}
       options={{
         mutationMode: "pessimistic",

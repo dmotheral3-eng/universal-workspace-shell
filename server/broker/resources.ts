@@ -41,6 +41,16 @@ export interface BrokerResource {
    *   "book_id"  an evidence table, narrowed on the ids those slugs resolve to
    */
   bookScope?: "slug" | "book_id";
+  /**
+   * The column a single row is addressed by (BOR-130).
+   *
+   * Declaring it opens two narrowings and no more: `?id=<v>` (one row) and
+   * `?ids=<a>,<b>` (several). Both are still folded in UNDER the tenant filter
+   * and the book gate, so an id that belongs to another tenant resolves to
+   * nothing rather than to that tenant's row. A resource that does not declare
+   * one cannot be addressed by row at all.
+   */
+  idColumn?: string;
 }
 
 export const BROKER_RESOURCES: Record<string, BrokerResource> = {
@@ -87,6 +97,7 @@ Object.assign(BROKER_RESOURCES, {
     filters: {},
     order: "display_name.asc",
     maxLimit: 200,
+    idColumn: "id",
     bookScope: "slug",
   },
   lending_decisions: {
@@ -102,6 +113,7 @@ Object.assign(BROKER_RESOURCES, {
     filters: { book: "book_id" },
     order: "decided_at.desc",
     maxLimit: 500,
+    idColumn: "id",
     bookScope: "book_id",
   },
   lending_interactions: {
@@ -116,6 +128,7 @@ Object.assign(BROKER_RESOURCES, {
     filters: { book: "book_id" },
     order: "occurred_at.desc",
     maxLimit: 500,
+    idColumn: "id",
     bookScope: "book_id",
   },
   lending_changes: {
@@ -130,6 +143,7 @@ Object.assign(BROKER_RESOURCES, {
     filters: { book: "book_id" },
     order: "recorded_at.desc",
     maxLimit: 500,
+    idColumn: "id",
     bookScope: "book_id",
   },
   /**
@@ -181,6 +195,7 @@ Object.assign(BROKER_RESOURCES, {
     filters: { book: "book_id" },
     order: "effective_at.desc",
     maxLimit: 500,
+    idColumn: "id",
     bookScope: "book_id",
   },
   /**
@@ -206,6 +221,7 @@ Object.assign(BROKER_RESOURCES, {
     filters: {},
     order: "name.asc",
     maxLimit: 200,
+    idColumn: "vendor_id",
   },
   lending_vendor_checklist: {
     table: "bw_v_vendor_checklist",
@@ -220,6 +236,72 @@ Object.assign(BROKER_RESOURCES, {
     maxLimit: 500,
   },
 } satisfies Record<string, BrokerResource>);
+
+/* --------------------------------------------------------------- writes ---
+ * THE WRITE ALLOWLIST (BOR-130) — the same idea as the read allowlist, and
+ * deliberately a SEPARATE table from it.
+ *
+ * A resource being readable says nothing about whether it may be written. So a
+ * write is opened by a row HERE, naming exactly which actions exist, which
+ * columns address the row, and which fields a caller may send. Anything not
+ * named is refused before a single upstream call (404 for an unlisted resource,
+ * 400 for an unlisted field) — the browser never chooses a table, a column, or
+ * a verb.
+ *
+ * WHAT THIS FILE DOES NOT DECIDE. Whether THIS caller may make THIS change is
+ * not judged in the broker. The broker proves who is calling and which tenant
+ * they are in, then hands both — with the entitlement the row below names — to
+ * `lending.fn_broker_write` on the Cube, which checks, writes the fact and
+ * writes its evidence row in ONE transaction. The refusal a caller sees is the
+ * code that function returned, not one this repo made up.
+ */
+export interface BrokerWrite {
+  /** Entitlement needed to REACH the door at all (the read entitlement). */
+  entitlement: string;
+  /**
+   * Entitlement the wall requires to make the change. Passed to the Cube
+   * function, which compares it against the caller's grant and records the
+   * refusal — the broker does not short-circuit on it, because a refusal that
+   * never reaches the wall leaves no evidence.
+   */
+  writeEntitlement: string;
+  /** Refine verbs this resource accepts. */
+  actions: Array<"create" | "update" | "delete">;
+  /** Key name the caller sends → how it is validated. The row's address. */
+  key: Record<string, "uuid" | "slug">;
+  /**
+   * Field name → the values it may take, or `"text"` for bounded free text.
+   * A field not named here is a 400, never silently dropped.
+   */
+  fields: Record<string, readonly string[] | "text">;
+  /** Column on the returned row that must equal the caller's tenant. */
+  tenantColumn: string;
+}
+
+export const BROKER_WRITES: Record<string, BrokerWrite> = {
+  /**
+   * A vendor checklist step — the first write through the hallway (R1 walks it).
+   *
+   * Addressed by (vendor_id, fact_key) because the read view carries no row id
+   * of its own. `update` only: a step is never created or deleted from the
+   * surface, it is moved between states.
+   */
+  lending_vendor_checklist: {
+    entitlement: LENDING_ENTITLEMENT,
+    writeEntitlement: "lending.vendors.write",
+    actions: ["update"],
+    key: { vendor_id: "uuid", fact_key: "slug" },
+    fields: {
+      status: ["NOT STARTED", "IN PROGRESS", "COMPLETE"],
+      detail: "text",
+    },
+    tenantColumn: "tenant_id",
+  },
+};
+
+export function lookupWrite(name: string): BrokerWrite | null {
+  return Object.prototype.hasOwnProperty.call(BROKER_WRITES, name) ? BROKER_WRITES[name] : null;
+}
 
 export function lookupResource(name: string): BrokerResource | null {
   // Own-property lookup only: "constructor"/"__proto__" must not resolve.

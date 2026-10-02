@@ -11,6 +11,7 @@
 import type { Plugin } from "vite";
 import { readBrokerEnv } from "./broker/env.js";
 import { handleCubeRequest } from "./broker/handler.js";
+import { readJsonBody } from "./whereweare/adapter.js";
 
 export function devBrokerPlugin(): Plugin {
   return {
@@ -46,7 +47,14 @@ export function devBrokerPlugin(): Plugin {
         };
 
         const result = await handleCubeRequest(
-          { method: req.method ?? "GET", url: url.toString(), headers },
+          {
+            method: req.method ?? "GET",
+            url: url.toString(),
+            headers,
+            // Without this every POST is a `bad_body` on the dev server, and the
+            // write path could only be exercised in production.
+            json: () => readJsonBody(req),
+          },
           { env, fetch, log: (m) => console.error(`[cube-broker] ${m}`) }
         );
         send(result.status, result.body);
