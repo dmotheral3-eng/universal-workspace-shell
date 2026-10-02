@@ -101,6 +101,61 @@ export async function brokerGet<T>(
 }
 
 /**
+ * The write half (BOR-130) — same posture as `brokerGet`, and the same reason.
+ *
+ * The browser names a resource, a verb, the row's address and the fields it
+ * wants changed. It does NOT name a table, a column, a tenant or itself: the
+ * server re-derives identity and tenant from the session, checks the body
+ * against its own write allowlist, and hands the change to the wall on the
+ * Cube, which decides. A refusal comes back as a `BrokerError` whose `code` is
+ * the wall's own word for why — codes only, as everywhere else on this surface.
+ * The words a person reads for that code come from the `can` route (BOR-132),
+ * never from here.
+ *
+ * NOTHING ABOUT THIS IS OPTIMISTIC. The promise resolves only after the server
+ * has answered `{ok:true}` with the row as it now stands; a caller that paints
+ * before that is painting a guess.
+ */
+export interface BrokerWriteBody {
+  action: "create" | "update" | "delete";
+  /** The row's address, by the key names the server's allowlist expects. */
+  id: Record<string, string>;
+  values?: Record<string, string>;
+}
+
+export async function brokerPost<T>(
+  resource: string,
+  body: BrokerWriteBody
+): Promise<{ row: T; changeId: string | null }> {
+  const token = await getAccessToken();
+  if (!token) throw new BrokerError("not_authenticated");
+
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  const pinned = getConfig().data.broker?.tenantId;
+  if (pinned) headers["X-Tenant-Id"] = pinned;
+
+  const res = await fetchWithTimeout(`/api/cube/${resource}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  const json = (await res.json().catch(() => null)) as
+    | { ok?: boolean; row?: T; change_id?: string; error?: string }
+    | null;
+
+  if (!res.ok) {
+    throw new BrokerError(String(json?.error ? json.error : `http_${res.status}`));
+  }
+  if (!json || json.ok !== true || !json.row) throw new BrokerError("bad_payload");
+
+  return { row: json.row, changeId: typeof json.change_id === "string" ? json.change_id : null };
+}
+
+/**
  * Rate card over the broker — the same shape `LawDogProvider.listRateCard()`
  * returns, through the same row mapper, so the Rates panel renders identically
  * whichever door it came through.
