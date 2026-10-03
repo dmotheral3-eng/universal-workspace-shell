@@ -23,6 +23,7 @@ import type { BrokerEnv } from "./env.js";
 import { meterAppAction } from "./meter.js";
 import { lookupResource, type BrokerResource } from "./resources.js";
 import { handleWrite } from "./write.js";
+import { handleWhoAmI } from "./whoami.js";
 import {
   entitledBookSlugs,
   isEntitled,
@@ -192,6 +193,10 @@ export async function handleCubeRequest(
   // 2. Allowlist before authentication: an unknown resource is a 404 for
   //    everyone, so the surface cannot be enumerated with a valid session.
   const name = resourceNameFromPath(url.pathname);
+
+  // The one name here that is not a Cube resource: the caller's own identity,
+  // answered from master alone (BOR-131). It never reaches step 7.
+  if (name === "whoami") return handleWhoAmI(req, deps);
   const resource = name ? lookupResource(name) : null;
   if (!resource) return refuse(404, "unknown_resource");
 

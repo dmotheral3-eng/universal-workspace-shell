@@ -16,6 +16,7 @@ import { SemesterFace } from "@/faces/SemesterFace";
 import { getConfig } from "@/config";
 import { loadResourcesFromRegistry } from "@/data/refine-resources";
 import { brokerDataProvider } from "@/data/refine-data-provider";
+import { shellAuthProvider } from "@/data/refine-auth-provider";
 
 function AppInner() {
   const { openPopout } = usePopoutManager();
@@ -100,6 +101,14 @@ function AppInner() {
  * a signed-out one) simply keeps the empty list, which is the honest answer for
  * a surface that has no rail of its own.
  *
+ * PROVIDERS ARRIVE WITH THEIR IMPLEMENTATIONS, NEVER BEFORE. BOR-129 as written
+ * asked for all four props at once. Mounted that way it did not survive a page
+ * load: `<Refine>` CALLS `authProvider.check()` itself on mount, so a
+ * not-yet-built auth provider threw on every render ("Unhandled Error in check:
+ * refine always expects a resolved promise"). A provider prop is not inert.
+ * `dataProvider` is BOR-130 (refine-data-provider.ts); `authProvider` is BOR-131
+ * (refine-auth-provider.ts) and wraps the shell's one existing sign-in — it adds
+ * no second one. accessControl lands in BOR-132, auditLog in BOR-133.
  * ONLY `dataProvider` IS PASSED HERE, AND THAT IS A FINDING, NOT AN OMISSION.
  * BOR-129 as written asks for all four props at once. Mounted that way it does
  * not survive a page load: `<Refine>` CALLS `authProvider.check()` itself on
@@ -126,6 +135,7 @@ function RefineHost({ children }: { children: React.ReactNode }) {
   return (
     <Refine
       dataProvider={brokerDataProvider}
+      authProvider={shellAuthProvider}
       resources={resources}
       options={{
         mutationMode: "pessimistic",
