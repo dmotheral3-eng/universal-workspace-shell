@@ -156,11 +156,24 @@ export function SemesterFace() {
       ...RAIL_ORDER.filter((pt) => available.includes(pt)),
       ...available.filter((pt) => !RAIL_ORDER.includes(pt)),
     ];
-    return ordered.map((pt) => ({
-      key: pt,
-      label: PANEL_META[pt].label,
-      icon: PANEL_META[pt].icon as SemesterNavItem["icon"],
-    }));
+    // A panel the profile registers but the rail has no entry for is DROPPED
+    // FROM THE RAIL AND NAMED IN THE CONSOLE — never dereferenced. Before this
+    // guard, `PANEL_META[pt].label` on a missing entry threw inside this memo,
+    // React unmounted the whole tree, and every signed-in user got a white page
+    // with nothing on it but the tab title (BOR-139: "Vendors" was in the
+    // lending-app profile and not in PANEL_META). One missing rail item is a
+    // defect; a blank app is an outage.
+    const missing = ordered.filter((pt) => !PANEL_META[pt]);
+    if (missing.length > 0) {
+      console.error("[rail] panel registered with no rail entry", missing);
+    }
+    return ordered
+      .filter((pt) => PANEL_META[pt])
+      .map((pt) => ({
+        key: pt,
+        label: PANEL_META[pt].label,
+        icon: PANEL_META[pt].icon as SemesterNavItem["icon"],
+      }));
   }, []);
 
   /** The screen title is the panel's name in this profile's vocabulary. */
