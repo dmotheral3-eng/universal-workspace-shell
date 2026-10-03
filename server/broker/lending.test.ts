@@ -63,6 +63,30 @@ const DECISIONS = [
   { id: "d3", tenant_id: OTHER_TENANT, book_id: BOOK_OTHER_TENANT, decision_ref: "D-3", outcome: "approved" },
 ];
 
+/**
+ * BOR-133 fixtures. Two vendors whose ids differ only where one has `_` and the
+ * other a letter — upstream, `_` matches any single character, so a prefix
+ * query for the first also matches the second. Plus the same vendor's change
+ * in the sibling book and in another tenant.
+ */
+const CHANGES = [
+  { id: "c1", tenant_id: TENANT, book_id: BOOK_MINE, path: "vendors/v_payflow/annual_risk_review", intent: "update", author: "ops@example.test", author_kind: "human", reasoning: null, status: "applied", corrects_id: null, recorded_at: "2026-09-12T23:19:53Z", before_state: { status: "LAPSED" }, after_state: { status: "IN PROGRESS" } },
+  { id: "c2", tenant_id: TENANT, book_id: BOOK_MINE, path: "vendors/v_payflow/soc2_type_ii_report", intent: "update", author: "ops@example.test", author_kind: "human", reasoning: "step_sealed", status: "refused", corrects_id: null, recorded_at: "2026-09-12T23:19:51Z", before_state: { status: "COMPLETE", sealed: true }, after_state: { status: "NOT STARTED" } },
+  { id: "c3", tenant_id: TENANT, book_id: BOOK_MINE, path: "vendors/vXpayflow/w9_on_file", intent: "update", author: "ops@example.test", author_kind: "human", reasoning: null, status: "applied", corrects_id: null, recorded_at: "2026-09-10T00:00:00Z", before_state: null, after_state: null },
+  { id: "c4", tenant_id: TENANT, book_id: BOOK_MINE, path: "decision-rules/dti-ceiling", intent: "raise the ceiling", author: "specimen-author-2", author_kind: "human", reasoning: null, status: "applied", corrects_id: null, recorded_at: "2026-09-01T00:00:00Z", before_state: null, after_state: null },
+  { id: "c5", tenant_id: TENANT, book_id: BOOK_SIBLING, path: "vendors/v_payflow/annual_risk_review", intent: "update", author: "x", author_kind: "human", reasoning: null, status: "applied", corrects_id: null, recorded_at: "2026-09-02T00:00:00Z", before_state: null, after_state: null },
+  { id: "c6", tenant_id: OTHER_TENANT, book_id: BOOK_OTHER_TENANT, path: "vendors/v_payflow/annual_risk_review", intent: "update", author: "x", author_kind: "human", reasoning: null, status: "applied", corrects_id: null, recorded_at: "2026-09-02T00:00:00Z", before_state: null, after_state: null },
+];
+
+/** SQL LIKE as the database applies it: `*` is any run, `_` is any one character. */
+function likeToRegExp(pattern: string): RegExp {
+  const body = pattern
+    .split("")
+    .map((ch) => (ch === "*" ? ".*" : ch === "_" ? "." : ch.replace(/[.+?^${}()|[\]\\\/-]/g, "\\$&")))
+    .join("");
+  return new RegExp(`^${body}$`);
+}
+
 interface FakeOptions {
   /** token → master user id */
   users?: Record<string, string>;
@@ -123,7 +147,9 @@ function fakeUpstream(opts: FakeOptions) {
               ? VENDORS
               : table === "bw_v_vendor_checklist"
                 ? VENDOR_CHECKLIST
-                : [];
+                : table === "evidence_changes"
+                  ? CHANGES
+                  : [];
 
       for (const [key, value] of parsed.searchParams.entries()) {
         if (key === "select" || key === "order" || key === "limit") continue;
@@ -136,6 +162,12 @@ function fakeUpstream(opts: FakeOptions) {
         if (inList) {
           const allowed = new Set(inList[1].split(",").filter(Boolean));
           rows = rows.filter((r) => allowed.has(String(r[key])));
+          continue;
+        }
+        const like = /^like\.(.*)$/.exec(value);
+        if (like) {
+          const re = likeToRegExp(like[1]);
+          rows = rows.filter((r) => re.test(String(r[key])));
         }
       }
       return new Response(JSON.stringify(rows), { status: 200 });
@@ -454,5 +486,75 @@ describe("the vendor resources (tenant-scoped, no book gate)", () => {
       expect(res.body, resource).toEqual({ error: "not_entitled" });
       expect(up.calls.some((c) => c.url.startsWith(ENV.cubeUrl)), resource).toBe(false);
     }
+  });
+});
+
+describe("the change record, read by path (BOR-133)", () => {
+  it("returns one vendor's changes — applied and refused — with what the row was and became", async () => {
+    const up = fakeUpstream(ONE_BOOK);
+    const res = await handleCubeRequest(
+      request("/api/cube/lending_changes?path_prefix=vendors/v_payflow/", AUTH),
+      { env: ENV, fetch: up.fetch }
+    );
+    expect(res.status).toBe(200);
+    const rows = (res.body as { rows: Array<Record<string, unknown>> }).rows;
+    expect(rows.map((r) => r.id).sort()).toEqual(["c1", "c2"]);
+    expect(rows.find((r) => r.id === "c1")).toMatchObject({
+      status: "applied",
+      before_state: { status: "LAPSED" },
+      after_state: { status: "IN PROGRESS" },
+    });
+    expect(rows.find((r) => r.id === "c2")).toMatchObject({ status: "refused", reasoning: "step_sealed" });
+  });
+
+  it("drops the row the database's single-character wildcard let through", async () => {
+    const up = fakeUpstream(ONE_BOOK);
+    const res = await handleCubeRequest(
+      request("/api/cube/lending_changes?path_prefix=vendors/v_payflow/", AUTH),
+      { env: ENV, fetch: up.fetch }
+    );
+    // The fake honours LIKE the way the database does, so `vXpayflow` came back
+    // upstream. It must not come back from the broker.
+    const ids = (res.body as { rows: Array<{ id: string }> }).rows.map((r) => r.id);
+    expect(ids).not.toContain("c3");
+  });
+
+  it("keeps the prefix UNDER the tenant and the book — it narrows, it never widens", async () => {
+    const up = fakeUpstream(ONE_BOOK);
+    const res = await handleCubeRequest(
+      request("/api/cube/lending_changes?path_prefix=vendors/", AUTH),
+      { env: ENV, fetch: up.fetch }
+    );
+    const ids = (res.body as { rows: Array<{ id: string }> }).rows.map((r) => r.id).sort();
+    expect(ids).toEqual(["c1", "c2", "c3"]); // not the sibling book's c5, not the other tenant's c6
+
+    const cube = up.calls.find((c) => c.url.includes("/evidence_changes"))!;
+    const q = new URL(cube.url).searchParams;
+    expect(q.get("tenant_id")).toBe(`eq.${TENANT}`);
+    expect(q.get("book_id")).toBe(`in.(${BOOK_MINE})`);
+    expect(q.get("path")).toBe("like.vendors/*");
+  });
+
+  it("refuses a prefix carrying a wildcard, an operator or a way out of the path", async () => {
+    for (const bad of ["vendors/*", "vendors/%25", "vendors/a,b", "vendors/(x)", "vendors/..", "/vendors", "vendors//x", "x".repeat(161)]) {
+      const up = fakeUpstream(ONE_BOOK);
+      const res = await handleCubeRequest(
+        request(`/api/cube/lending_changes?path_prefix=${bad}`, AUTH),
+        { env: ENV, fetch: up.fetch }
+      );
+      expect(res.status, bad).toBe(400);
+      expect(res.body, bad).toEqual({ error: "bad_filter" });
+      expect(up.calls.some((c) => c.url.includes("/evidence_changes")), bad).toBe(false);
+    }
+  });
+
+  it("ignores path_prefix on a resource that does not declare it", async () => {
+    const up = fakeUpstream(ONE_BOOK);
+    await handleCubeRequest(
+      request("/api/cube/lending_decisions?path_prefix=vendors/", AUTH),
+      { env: ENV, fetch: up.fetch }
+    );
+    const cube = up.calls.find((c) => c.url.includes("/evidence_decisions"))!;
+    expect(new URL(cube.url).searchParams.has("path")).toBe(false);
   });
 });
