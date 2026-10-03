@@ -1,6 +1,3 @@
-import { useEffect, useState } from "react";
-import { Refine } from "@refinedev/core";
-import type { IResourceItem } from "@refinedev/core";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LayoutProvider, LayoutRenderer, WorkspaceHeader, CollapsedRail, CommandPalette } from "@/shell";
@@ -18,6 +15,7 @@ import { loadResourcesFromRegistry } from "@/data/refine-resources";
 import { brokerDataProvider } from "@/data/refine-data-provider";
 import { shellAuthProvider } from "@/data/refine-auth-provider";
 import { changeLogProvider } from "@/data/refine-audit-log";
+import { RefineHost } from "@/shell/refine-host";
 
 function AppInner() {
   const { openPopout } = usePopoutManager();

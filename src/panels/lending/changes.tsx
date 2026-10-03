@@ -1,9 +1,8 @@
-import { useCallback } from "react";
-import { listChanges, type LendingChange } from "@/data/lending-broker";
+import { toChange, type LendingChange } from "@/data/lending-broker";
 import { LdNote, dateTime, humanize } from "@/panels/legal/ld-kit";
 import { LdPanelFrame, type LdExplainCopy } from "@/panels/legal/ld-panel-frame";
 import { CorrectionMark, EvidenceTable } from "./evidence-table";
-import { useLendingData } from "./use-lending-data";
+import { useLendingTable } from "./use-lending-table";
 
 export function ChangesView({ changes }: { changes: LendingChange[] }) {
   return (
@@ -47,8 +46,7 @@ export const CHANGES_EXPLAIN: LdExplainCopy = {
 };
 
 export function ChangesPanel() {
-  const load = useCallback((bookId: string) => listChanges(bookId), []);
-  const { state } = useLendingData<LendingChange[]>(load);
+  const { state } = useLendingTable<LendingChange>("lending_changes", toChange);
 
   return (
     <LdPanelFrame
