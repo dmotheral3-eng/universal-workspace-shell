@@ -5,9 +5,11 @@ import {
   getSession,
   isSignedIn,
   onAuthChange,
+  requestEmailCode,
   signIn,
   signInWithProvider,
   signOut,
+  verifyEmailCode,
   type LawDogSession,
 } from "@/data/lawdog-auth";
 import { getAuthConfig, getConfig } from "@/config";
@@ -72,6 +74,11 @@ export function LawDogGate({ children }: { children: ReactNode }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The one-time code step (BOR-141). `codeSentTo` is the address the code was
+  // asked for; while it is set the card shows the code field instead of the
+  // password field.
+  const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
+  const [code, setCode] = useState("");
 
   useEffect(() => {
     if (!active || !auth) {
@@ -137,6 +144,90 @@ export function LawDogGate({ children }: { children: ReactNode }) {
       setBusy(false);
     }
   };
+
+  const sendCode = async () => {
+    const address = email.trim();
+    if (!address || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      trackDoorEvent("door-provider-selected", { provider: "email-code" });
+      await requestEmailCode(address);
+      setCode("");
+      setCodeSentTo(address);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not send a code");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitCode = async () => {
+    if (!codeSentTo || !code || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await verifyEmailCode(codeSentTo, code);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sign-in failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (auth?.emailCode && codeSentTo) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <div className="w-[320px]">
+          <div className="mb-6 flex items-center gap-2">
+            <Lock className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">{auth?.label ?? config.brand.name}</span>
+          </div>
+
+          <div className="space-y-3">
+            {/* The same sentence whether or not the address has a seat: the
+                door must not answer "who has an account here". */}
+            <p className="text-xs leading-snug text-muted-foreground">
+              If {codeSentTo} has a seat here, a sign-in code is on its way. Enter it below.
+            </p>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="ld-code" className="text-xs">
+                Code
+              </Label>
+              <Input
+                id="ld-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submitCode()}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            {error && <p className="text-xs text-destructive">{error}</p>}
+
+            <Button onClick={submitCode} disabled={busy || !code} className="h-8 w-full text-xs">
+              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Sign in"}
+            </Button>
+            <Button
+              variant="outline"
+              className="h-8 w-full text-xs"
+              disabled={busy}
+              onClick={() => {
+                setCodeSentTo(null);
+                setCode("");
+                setError(null);
+              }}
+            >
+              Use a different way to sign in
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-background">
@@ -214,10 +305,23 @@ export function LawDogGate({ children }: { children: ReactNode }) {
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Sign in"}
           </Button>
 
-          <p className="pt-1 text-[10px] leading-snug text-muted-foreground">
-            Every table in this store is RLS-scoped to authenticated users. There is no anonymous
-            read path, by design.
-          </p>
+          {auth?.emailCode && (
+            <Button
+              variant="outline"
+              onClick={sendCode}
+              disabled={busy || !email}
+              className="h-8 w-full text-xs"
+            >
+              Email me a sign-in code
+            </Button>
+          )}
+
+          {!auth?.hideStoreNote && (
+            <p className="pt-1 text-[10px] leading-snug text-muted-foreground">
+              Every table in this store is RLS-scoped to authenticated users. There is no anonymous
+              read path, by design.
+            </p>
+          )}
         </div>
       </div>
     </div>

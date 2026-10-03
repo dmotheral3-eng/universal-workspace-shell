@@ -137,6 +137,67 @@ export async function signIn(email: string, password: string): Promise<LawDogSes
   return s;
 }
 
+/* ── One-time code by email (BOR-141) ────────────────────────────────────────
+ *
+ * WHY. A person can hold a complete seat — an account, a tenant, a book — and
+ * no way in: their account is email-only, they were never sent a password, and
+ * the provider buttons sign in a DIFFERENT identity. This is the third way
+ * through the same door: ask for a code, type the code.
+ *
+ * WHAT IT IS NOT. It is not sign-up. `create_user: false` is sent on every
+ * request, so an address with no account gets no account. And the answer to
+ * "send me a code" is the same sentence whether or not the address is known —
+ * the door must not become a way to ask who has a seat.
+ *
+ * NO REDIRECT, ON PURPOSE. The code is typed into the tab that asked for it.
+ * A link opened from a mail client lands in a new tab, which has none of this
+ * tab's state; a typed code has no such problem. (If the message also carries
+ * a link, it lands on the existing redirect handler and signs in there.)
+ */
+
+/** Six to ten digits. The server decides the real length; this only rejects junk. */
+const CODE = /^[0-9]{6,10}$/;
+
+/**
+ * Ask for a code. Resolves whether or not the address has an account — see the
+ * note above. Rejects only when the request itself could not be made, or the
+ * server is rate-limiting (which is true for known and unknown addresses alike).
+ */
+export async function requestEmailCode(email: string): Promise<void> {
+  const { url, anonKey } = requireCfg();
+  const res = await fetch(`${url}/auth/v1/otp`, {
+    method: "POST",
+    headers: { apikey: anonKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, create_user: false }),
+  });
+  if (res.ok) return;
+  if (res.status === 429) {
+    throw new Error("Too many requests. Wait a minute, then ask for a new code.");
+  }
+  // Any other refusal — including "no such user" — is deliberately not told
+  // apart from success. The caller shows the same sentence either way.
+}
+
+/** Trade the typed code for a session. A wrong or expired code is one message. */
+export async function verifyEmailCode(email: string, code: string): Promise<LawDogSession> {
+  const token = code.replace(/\s+/g, "");
+  if (!CODE.test(token)) throw new Error("Enter the code from the email — digits only.");
+
+  const { url, anonKey } = requireCfg();
+  const res = await fetch(`${url}/auth/v1/verify`, {
+    method: "POST",
+    headers: { apikey: anonKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "email", email, token }),
+  });
+  const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok || typeof json.access_token !== "string") {
+    throw new Error("That code did not work. It may have expired — ask for a new one.");
+  }
+  const s = toSession(json, email);
+  store(s);
+  return s;
+}
+
 export async function signOut(): Promise<void> {
   const s = load();
   if (s) {
