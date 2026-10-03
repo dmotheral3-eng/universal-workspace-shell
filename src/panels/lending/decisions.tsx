@@ -1,9 +1,8 @@
-import { useCallback } from "react";
-import { listDecisions, type LendingDecision } from "@/data/lending-broker";
+import { toDecision, type LendingDecision } from "@/data/lending-broker";
 import { LdNote, dateOnly, dateTime, humanize } from "@/panels/legal/ld-kit";
 import { LdPanelFrame, type LdExplainCopy } from "@/panels/legal/ld-panel-frame";
 import { CorrectionMark, EvidenceTable } from "./evidence-table";
-import { useLendingData } from "./use-lending-data";
+import { useLendingTable } from "./use-lending-table";
 
 export function DecisionsView({ decisions }: { decisions: LendingDecision[] }) {
   return (
@@ -48,8 +47,7 @@ export const DECISIONS_EXPLAIN: LdExplainCopy = {
 };
 
 export function DecisionsPanel() {
-  const load = useCallback((bookId: string) => listDecisions(bookId), []);
-  const { state } = useLendingData<LendingDecision[]>(load);
+  const { state } = useLendingTable<LendingDecision>("lending_decisions", toDecision);
 
   return (
     <LdPanelFrame

@@ -1,9 +1,8 @@
-import { useCallback } from "react";
-import { listAttestations, type LendingAttestation } from "@/data/lending-broker";
+import { toAttestation, type LendingAttestation } from "@/data/lending-broker";
 import { LdNote, dateOnly, humanize } from "@/panels/legal/ld-kit";
 import { LdPanelFrame, type LdExplainCopy } from "@/panels/legal/ld-panel-frame";
 import { CorrectionMark, EvidenceTable } from "./evidence-table";
-import { useLendingData } from "./use-lending-data";
+import { useLendingTable } from "./use-lending-table";
 
 /** Expired is a fact about the record, not a judgement — say it, do not hide it. */
 function windowLine(a: LendingAttestation): string {
@@ -55,8 +54,7 @@ export const ATTESTATIONS_EXPLAIN: LdExplainCopy = {
 };
 
 export function AttestationsPanel() {
-  const load = useCallback((bookId: string) => listAttestations(bookId), []);
-  const { state } = useLendingData<LendingAttestation[]>(load);
+  const { state } = useLendingTable<LendingAttestation>("lending_attestations", toAttestation);
 
   return (
     <LdPanelFrame

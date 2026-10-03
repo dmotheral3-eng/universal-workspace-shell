@@ -1,9 +1,8 @@
-import { useCallback } from "react";
-import { listInteractions, type LendingInteraction } from "@/data/lending-broker";
+import { toInteraction, type LendingInteraction } from "@/data/lending-broker";
 import { LdNote, LdPill, dateTime, humanize } from "@/panels/legal/ld-kit";
 import { LdPanelFrame, type LdExplainCopy } from "@/panels/legal/ld-panel-frame";
 import { CorrectionMark, EvidenceTable } from "./evidence-table";
-import { useLendingData } from "./use-lending-data";
+import { useLendingTable } from "./use-lending-table";
 
 export function InteractionsView({ interactions }: { interactions: LendingInteraction[] }) {
   const flagged = interactions.filter((i) => i.flagged).length;
@@ -56,8 +55,7 @@ export const INTERACTIONS_EXPLAIN: LdExplainCopy = {
 };
 
 export function InteractionsPanel() {
-  const load = useCallback((bookId: string) => listInteractions(bookId), []);
-  const { state } = useLendingData<LendingInteraction[]>(load);
+  const { state } = useLendingTable<LendingInteraction>("lending_interactions", toInteraction);
 
   return (
     <LdPanelFrame

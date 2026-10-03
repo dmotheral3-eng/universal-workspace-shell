@@ -73,21 +73,30 @@ export interface LendingAttestation {
   correctsId: string | null;
 }
 
-type Row = Record<string, unknown>;
+/**
+ * A row as the broker returns it. The `to*` mappers below are the ONE place a
+ * brokered row becomes the shape a panel reads (BOR-136): the `list*` calls
+ * and the panels' table hook both go through them, so the two cannot drift.
+ */
+export type Row = Record<string, unknown>;
 
 const str = (v: unknown): string | null => (typeof v === "string" && v !== "" ? v : null);
 const req = (v: unknown): string => (typeof v === "string" ? v : "");
 
-export async function listBooks(): Promise<LendingBook[]> {
-  const rows = await brokerGet<Row>("lending_books");
-  return rows.map((r) => ({
+export function toBook(r: Row): LendingBook {
+  return {
     id: req(r.id),
     slug: req(r.slug),
     displayName: str(r.display_name) ?? req(r.slug),
     tribeLabel: str(r.tribe_label),
     isSpecimen: r.is_specimen === true,
     status: str(r.status),
-  }));
+  };
+}
+
+export async function listBooks(): Promise<LendingBook[]> {
+  const rows = await brokerGet<Row>("lending_books");
+  return rows.map(toBook);
 }
 
 /** Every evidence read narrows to one book. No book selected, no rows fetched. */
@@ -95,9 +104,8 @@ function bookParam(bookId: string): Record<string, string> {
   return { book: bookId };
 }
 
-export async function listDecisions(bookId: string): Promise<LendingDecision[]> {
-  const rows = await brokerGet<Row>("lending_decisions", bookParam(bookId));
-  return rows.map((r) => ({
+export function toDecision(r: Row): LendingDecision {
+  return {
     id: req(r.id),
     bookId: req(r.book_id),
     ref: str(r.decision_ref),
@@ -109,12 +117,16 @@ export async function listDecisions(bookId: string): Promise<LendingDecision[]> 
     reviewAction: str(r.review_action),
     retentionUntil: str(r.retention_until),
     correctsId: str(r.corrects_id),
-  }));
+  };
 }
 
-export async function listInteractions(bookId: string): Promise<LendingInteraction[]> {
-  const rows = await brokerGet<Row>("lending_interactions", bookParam(bookId));
-  return rows.map((r) => ({
+export async function listDecisions(bookId: string): Promise<LendingDecision[]> {
+  const rows = await brokerGet<Row>("lending_decisions", bookParam(bookId));
+  return rows.map(toDecision);
+}
+
+export function toInteraction(r: Row): LendingInteraction {
+  return {
     id: req(r.id),
     bookId: req(r.book_id),
     channel: str(r.channel),
@@ -125,12 +137,16 @@ export async function listInteractions(bookId: string): Promise<LendingInteracti
     flagRule: str(r.flag_rule),
     disposition: str(r.disposition),
     correctsId: str(r.corrects_id),
-  }));
+  };
 }
 
-export async function listChanges(bookId: string): Promise<LendingChange[]> {
-  const rows = await brokerGet<Row>("lending_changes", bookParam(bookId));
-  return rows.map((r) => ({
+export async function listInteractions(bookId: string): Promise<LendingInteraction[]> {
+  const rows = await brokerGet<Row>("lending_interactions", bookParam(bookId));
+  return rows.map(toInteraction);
+}
+
+export function toChange(r: Row): LendingChange {
+  return {
     id: req(r.id),
     bookId: req(r.book_id),
     path: str(r.path),
@@ -141,12 +157,16 @@ export async function listChanges(bookId: string): Promise<LendingChange[]> {
     status: str(r.status),
     correctsId: str(r.corrects_id),
     recordedAt: str(r.recorded_at),
-  }));
+  };
 }
 
-export async function listAttestations(bookId: string): Promise<LendingAttestation[]> {
-  const rows = await brokerGet<Row>("lending_attestations", bookParam(bookId));
-  return rows.map((r) => ({
+export async function listChanges(bookId: string): Promise<LendingChange[]> {
+  const rows = await brokerGet<Row>("lending_changes", bookParam(bookId));
+  return rows.map(toChange);
+}
+
+export function toAttestation(r: Row): LendingAttestation {
+  return {
     id: req(r.id),
     bookId: req(r.book_id),
     kind: str(r.kind),
@@ -155,7 +175,12 @@ export async function listAttestations(bookId: string): Promise<LendingAttestati
     effectiveAt: str(r.effective_at),
     expiresAt: str(r.expires_at),
     correctsId: str(r.corrects_id),
-  }));
+  };
+}
+
+export async function listAttestations(bookId: string): Promise<LendingAttestation[]> {
+  const rows = await brokerGet<Row>("lending_attestations", bookParam(bookId));
+  return rows.map(toAttestation);
 }
 
 /* ── Third-party risk (D-BWVENDOR-1) ──────────────────────────────────────────
