@@ -51,6 +51,18 @@ export interface BrokerResource {
    * one cannot be addressed by row at all.
    */
   idColumn?: string;
+  /**
+   * Client-supplied "starts with" narrowing, allowlisted by name → column
+   * (BOR-133).
+   *
+   * One use today: the change record is addressed by `path`, and a vendor's
+   * packet is every row whose path begins `vendors/<id>/`. The value is held
+   * to a path alphabet — letters, digits, `_`, `-`, `/` — so it can carry no
+   * wildcard and no operator, and the returned rows are re-checked against the
+   * prefix on the way out, because `_` is itself a single-character wildcard
+   * to the database and the query alone would match slightly too much.
+   */
+  prefixFilters?: Record<string, string>;
 }
 
 export const BROKER_RESOURCES: Record<string, BrokerResource> = {
@@ -138,9 +150,13 @@ Object.assign(BROKER_RESOURCES, {
     columns: [
       "id", "tenant_id", "book_id", "path", "intent", "author", "author_kind",
       "reasoning", "status", "corrects_id", "recorded_at",
+      // BOR-133: what the row was and what it became. The packet on a vendor's
+      // detail is these two columns; without them the log is a list of verbs.
+      "before_state", "after_state",
     ],
     entitlement: LENDING_ENTITLEMENT,
     filters: { book: "book_id" },
+    prefixFilters: { path_prefix: "path" },
     order: "recorded_at.desc",
     maxLimit: 500,
     idColumn: "id",
