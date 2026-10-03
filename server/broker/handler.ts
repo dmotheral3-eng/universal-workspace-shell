@@ -72,6 +72,14 @@ const SAFE_VALUE = /^[A-Za-z0-9_:@+\-. ]{1,128}$/;
  * would be operator syntax.
  */
 const SAFE_ID = /^[A-Za-z0-9_:-]{1,64}$/;
+
+/**
+ * A path prefix (BOR-133): segments of letters, digits, `_` and `-`, joined by
+ * `/`. No `*`, no `%`, no `.`, no `,` — nothing that is a wildcard or operator
+ * syntax upstream. The broker appends the one wildcard itself.
+ */
+const SAFE_PREFIX = /^[A-Za-z0-9_-]+(\/[A-Za-z0-9_-]+)*\/?$/;
+const MAX_PREFIX = 160;
 const MAX_IDS = 100;
 
 const JSON_HEADERS = {
@@ -134,6 +142,14 @@ export function buildCubeQuery(
     if (value === null || value === "") continue;
     if (!SAFE_VALUE.test(value)) return { error: "bad_filter" };
     params.set(column, `eq.${value}`);
+  }
+
+  // "Starts with" narrowing (BOR-133), only where the resource declares one.
+  for (const [name, column] of Object.entries(resource.prefixFilters ?? {})) {
+    const value = callerParams.get(name);
+    if (value === null || value === "") continue;
+    if (value.length > MAX_PREFIX || !SAFE_PREFIX.test(value)) return { error: "bad_filter" };
+    params.set(column, `like.${value}*`);
   }
 
   // Row addressing (BOR-130). Only where the resource declares an id column,
@@ -292,6 +308,16 @@ export async function handleCubeRequest(
     log(`tenant_bleed_blocked resource=${name} dropped=${rows.length - scoped.length}`);
   }
 
+  // 8b. A prefix is re-checked literally. Upstream, `_` matches any one
+  //     character, so `vendors/a_b/` would also return `vendors/axb/…` — same
+  //     tenant, wrong row. The caller asked for a prefix and gets exactly that.
+  let answered = scoped;
+  for (const [param, column] of Object.entries(resource.prefixFilters ?? {})) {
+    const prefix = url.searchParams.get(param);
+    if (!prefix) continue;
+    answered = answered.filter((row) => typeof row[column] === "string" && (row[column] as string).startsWith(prefix));
+  }
+
   // 9. METER THE ACT (BOR-70). After the read succeeded, never before: an action
   //    that refused is not an action the customer took. Awaited rather than
   //    fire-and-forget because a serverless invocation can be frozen the moment
@@ -305,14 +331,14 @@ export async function handleCubeRequest(
       method: "GET",
       resource: name,
       refId: name,
-      evidence: `brokered read returned ${scoped.length} row(s) for resource ${name}`,
+      evidence: `brokered read returned ${answered.length} row(s) for resource ${name}`,
     },
     deps
   );
 
   return {
     status: 200,
-    body: { resource: name, tenant: grant.tenantId, rows: scoped },
+    body: { resource: name, tenant: grant.tenantId, rows: answered },
     headers: JSON_HEADERS,
   };
 }
