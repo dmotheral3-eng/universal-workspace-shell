@@ -38,6 +38,8 @@
     "url": "SET_VITE_MASTER_URL",
     "anonKey": "SET_VITE_MASTER_ANON_KEY",
     "storageKey": "borrowworks.master.session",
-    "label": "BorrowWorks sign-in"
+    "label": "BorrowWorks sign-in",
+    "emailCode": true,
+    "hideStoreNote": true
   }
 }

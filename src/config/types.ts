@@ -32,6 +32,17 @@ export interface AuthConfig {
   storageKey?: string;
   /** Shown on the sign-in card. */
   label?: string;
+  /**
+   * Offer a one-time code by email on this door (BOR-141). Off unless a profile
+   * turns it on, so every other door is unchanged. It only works if the door's
+   * own sign-in service is set to send a code — see lawdog-auth.ts.
+   */
+  emailCode?: boolean;
+  /**
+   * Leave the store footnote off the sign-in card. The footnote names how the
+   * store is built; a customer-facing door does not say that.
+   */
+  hideStoreNote?: boolean;
 }
 
 export interface DataConfig {
