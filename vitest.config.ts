@@ -19,7 +19,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["server/**/*.test.ts", "src/**/*.test.ts", "test/**/*.test.ts"],
+    include: ["server/**/*.test.ts", "src/**/*.test.ts", "src/**/*.test.tsx", "test/**/*.test.ts"],
     // The bundle-grep test runs a real `vite build`.
     testTimeout: 180_000,
   },

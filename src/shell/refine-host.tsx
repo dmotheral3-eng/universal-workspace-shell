@@ -4,6 +4,8 @@ import type { IResourceItem } from "@refinedev/core";
 import { loadResourcesFromRegistry } from "@/data/refine-resources";
 import { brokerDataProvider } from "@/data/refine-data-provider";
 import { shellAuthProvider } from "@/data/refine-auth-provider";
+import { brokerAccessControlProvider } from "@/data/refine-access-control";
+import { changeLogProvider } from "@/data/refine-audit-log";
 
 /**
  * Refine sits UNDER the shell, not around it (BOR-129).
@@ -27,7 +29,11 @@ import { shellAuthProvider } from "@/data/refine-auth-provider";
  * refine always expects a resolved promise"). A provider prop is not inert.
  * `dataProvider` is BOR-130 (refine-data-provider.ts); `authProvider` is BOR-131
  * (refine-auth-provider.ts) and wraps the shell's one existing sign-in — it adds
- * no second one. accessControl lands in BOR-132, auditLog in BOR-133.
+ * no second one. `accessControlProvider` is BOR-132 (refine-access-control.ts):
+ * it asks the broker's `can` route, whose reason is the rule row's own text.
+ * `auditLogProvider` is BOR-133 (refine-audit-log.ts): it reads the change
+ * record and writes nothing, because the server already wrote the row in the
+ * same transaction as the change.
  *
  * ITS OWN MODULE BECAUSE THERE IS MORE THAN ONE ROOT (BOR-136). A popped-out
  * panel is a second React tree in a second window. Once a panel reads through
@@ -50,6 +56,8 @@ export function RefineHost({ children }: { children: React.ReactNode }) {
     <Refine
       dataProvider={brokerDataProvider}
       authProvider={shellAuthProvider}
+      accessControlProvider={brokerAccessControlProvider}
+      auditLogProvider={changeLogProvider}
       resources={resources}
       options={{
         mutationMode: "pessimistic",

@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 import { buildCubeQuery, handleCubeRequest } from "./handler";
 import { BROKER_RESOURCES, BROKER_WRITES } from "./resources";
 import type { BrokerEnv } from "./env";
+import { answerGateRead, gateRows, type GateRow } from "./gates.fixture";
 
 /**
  * The write door (BOR-130).
  *
  * The fake wall below is not a stub that says yes. It holds rows under two
  * tenants and ACTUALLY APPLIES the same three checks the Cube function does —
- * tenant, entitlement, sealed — against the arguments the broker sent it. So if
+ * tenant, sealed, entitlement — against the arguments the broker sent it. So if
  * the broker ever forwarded a tenant the caller chose, or dropped the caller's
  * entitlements, these tests would write the wrong row or allow the wrong user,
  * and fail. A fake that always returned `{ok:true}` would prove nothing.
@@ -67,6 +68,9 @@ interface FakeOptions {
   wallStatus?: number;
   wallBody?: unknown;
   wallThrows?: boolean;
+  /** The gate view: a failing status, or rows other than the three real ones. */
+  gateStatus?: number;
+  gateRows?: GateRow[];
 }
 
 function fakeUpstream(opts: FakeOptions) {
@@ -92,6 +96,11 @@ function fakeUpstream(opts: FakeOptions) {
     if (url.startsWith(`${ENV.masterUrl}/rest/v1/${ENV.membershipTable}`)) {
       const id = opts.users?.[bearer];
       return new Response(JSON.stringify((id && opts.memberships?.[id]) || []), { status: 200 });
+    }
+
+    if (url.startsWith(`${ENV.cubeUrl}/rest/v1/bw_v_gate_rules?`)) {
+      if (opts.gateStatus) return new Response(JSON.stringify({ message: "relation obligation.obligation_rules" }), { status: opts.gateStatus });
+      return answerGateRead(url, opts.gateRows ?? [...gateRows(TENANT), ...gateRows(OTHER_TENANT)]);
     }
 
     if (url === `${ENV.cubeUrl}/rest/v1/rpc/fn_meter_app_action`) {
@@ -120,8 +129,9 @@ function fakeUpstream(opts: FakeOptions) {
         evidence.push({ tenant_id: a.p_tenant, path, author: a.p_actor, status: "refused", reasoning: code, before_state: fact.value, after_state: a.p_values });
         return new Response(JSON.stringify({ ok: false, code, change_id: `chg-${evidence.length}` }), { status: 200 });
       };
-      if (!a.p_entitlements.includes("*") && !a.p_entitlements.includes(a.p_required)) return refuse("role_required");
+      // Sealed BEFORE role, as the wall now checks (BOR-132).
       if (fact.value.sealed === true) return refuse("step_sealed");
+      if (!a.p_entitlements.includes("*") && !a.p_entitlements.includes(a.p_required)) return refuse("role_required");
 
       const before = fact.value;
       fact.value = { ...fact.value, ...a.p_values, updated_by: a.p_actor };
@@ -156,7 +166,8 @@ function post(path: string, body: unknown, headers: Record<string, string> = {})
 }
 
 const READ = "lending.evidence";
-const WRITE = "lending.vendors.write";
+/** Not written in the allowlist: derived from the role gate's own row (owner_role `vendor-risk`). */
+const WRITE = "lending.role.vendor-risk";
 
 /** user-w may write; user-r may only read; user-o belongs to the OTHER tenant and may write there. */
 const PEOPLE: FakeOptions = {
@@ -269,6 +280,80 @@ describe("a user without the role is refused by the wall, and nothing changes", 
     expect(res.status).toBe(403);
     expect(res.body).toMatchObject({ ok: false, error: "step_sealed" });
     expect(up.facts).toEqual(freshFacts());
+  });
+});
+
+describe("a refusal names its rule, in the rule row's own words (BOR-132)", () => {
+  const SEALED_STEP = { action: "update", id: { vendor_id: PAYFLOW, fact_key: "soc2_report" }, values: { status: "NOT STARTED" } };
+
+  it("maps role_required to the role gate bound to this action, with label and description from the row", async () => {
+    const up = fakeUpstream(PEOPLE);
+    const res = await handleCubeRequest(post(PATH, START, as("token-r")), { env: ENV, fetch: up.fetch });
+    const [, roleGate] = gateRows(TENANT);
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({
+      ok: false,
+      error: "role_required",
+      refused: true,
+      rule_key: "bw-gate-vendor-step-write",
+      version: 1,
+      label: roleGate.label,
+      description: roleGate.description,
+      change_id: "chg-1",
+    });
+  });
+
+  it("shows the words the ROW carries, not words the broker holds", async () => {
+    const reworded = gateRows(TENANT).map((r) =>
+      r.rule_key === "bw-gate-vendor-step-write" ? { ...r, version: 2, label: "Reworded.", description: "A new version row." } : r
+    );
+    const up = fakeUpstream({ ...PEOPLE, gateRows: reworded });
+    const res = await handleCubeRequest(post(PATH, START, as("token-r")), { env: ENV, fetch: up.fetch });
+    expect(res.body).toMatchObject({ rule_key: "bw-gate-vendor-step-write", version: 2, label: "Reworded.", description: "A new version row." });
+  });
+
+  it("refuses a sealed step as SEALED for someone without the role too — sealed is checked first", async () => {
+    const up = fakeUpstream(PEOPLE);
+    const res = await handleCubeRequest(post(PATH, SEALED_STEP, as("token-r")), { env: ENV, fetch: up.fetch });
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: "step_sealed", refused: true, rule_key: "bw-gate-step-sealed", label: "This step is sealed." });
+    expect(up.evidence[0]).toMatchObject({ status: "refused", reasoning: "step_sealed" });
+  });
+
+  it("leaves a code that is not a gate as a bare code", async () => {
+    const up = fakeUpstream({ ...PEOPLE, wallBody: { ok: false, code: "write_not_allowed" } });
+    const res = await handleCubeRequest(post(PATH, START, as("token-w")), { env: ENV, fetch: up.fetch });
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ ok: false, error: "write_not_allowed" });
+  });
+
+  it("asks the wall to require the role gate's entitlement, derived from the row's owner_role", async () => {
+    const renamed = gateRows(TENANT).map((r) => (r.rule_key === "bw-gate-vendor-step-write" ? { ...r, owner_role: "Third-Party" } : r));
+    const up = fakeUpstream({ ...PEOPLE, gateRows: renamed });
+    await handleCubeRequest(post(PATH, START, as("token-w")), { env: ENV, fetch: up.fetch });
+    expect((wallCalls(up)[0].body as { p_required: string }).p_required).toBe("lending.role.third-party");
+  });
+
+  it("does not ask the wall at all when a bound gate cannot be read", async () => {
+    const cases: FakeOptions[] = [
+      { gateStatus: 404 },
+      { gateStatus: 500 },
+      // The binding names a rule that has no row.
+      { gateRows: gateRows(TENANT).filter((r) => r.rule_key !== "bw-gate-step-sealed") },
+      // Rows exist, but under another tenant.
+      { gateRows: gateRows(OTHER_TENANT) },
+    ];
+    for (const opts of cases) {
+      const up = fakeUpstream({ ...PEOPLE, ...opts });
+      const logs: string[] = [];
+      const res = await handleCubeRequest(post(PATH, START, as("token-w")), { env: ENV, fetch: up.fetch, log: (m) => logs.push(m) });
+      expect(res.status, JSON.stringify(opts).slice(0, 60)).toBe(502);
+      expect(res.body).toEqual({ error: "upstream_error" });
+      expect(wallCalls(up)).toHaveLength(0);
+      expect(up.facts).toEqual(freshFacts());
+      expect(JSON.stringify(res.body) + logs.join("\n")).not.toContain("obligation_rules");
+    }
   });
 });
 

@@ -266,7 +266,7 @@ Object.assign(BROKER_RESOURCES, {
  *
  * WHAT THIS FILE DOES NOT DECIDE. Whether THIS caller may make THIS change is
  * not judged in the broker. The broker proves who is calling and which tenant
- * they are in, then hands both — with the entitlement the row below names — to
+ * they are in, then hands both — with the entitlement the bound role gate names — to
  * `lending.fn_broker_write` on the Cube, which checks, writes the fact and
  * writes its evidence row in ONE transaction. The refusal a caller sees is the
  * code that function returned, not one this repo made up.
@@ -275,12 +275,21 @@ export interface BrokerWrite {
   /** Entitlement needed to REACH the door at all (the read entitlement). */
   entitlement: string;
   /**
-   * Entitlement the wall requires to make the change. Passed to the Cube
-   * function, which compares it against the caller's grant and records the
-   * refusal — the broker does not short-circuit on it, because a refusal that
-   * never reaches the wall leaves no evidence.
+   * THE GATE BINDING (BOR-132): action → the rule_keys that govern it, in the
+   * order the wall checks them. Each key is a row in
+   * `obligation.obligation_rules` on the Cube; the row carries the owner role
+   * and the words a refusal shows — see ./gates.ts.
+   *
+   * The entitlement the wall is asked to require is NOT written here. It is
+   * derived from the role gate's own row (`lending.role.` + its owner_role),
+   * so the rule a refusal cites and the check that produced it are one thing.
+   * The broker still does not short-circuit on it: a refusal that never
+   * reaches the wall leaves no evidence.
+   *
+   * A binding for an action `actions` does not open is carried, not used — it
+   * is the ruling's table, kept whole so opening the action later is one edit.
    */
-  writeEntitlement: string;
+  gates: Partial<Record<"create" | "update" | "delete", readonly string[]>>;
   /** Refine verbs this resource accepts. */
   actions: Array<"create" | "update" | "delete">;
   /** Key name the caller sends → how it is validated. The row's address. */
@@ -304,7 +313,12 @@ export const BROKER_WRITES: Record<string, BrokerWrite> = {
    */
   lending_vendor_checklist: {
     entitlement: LENDING_ENTITLEMENT,
-    writeEntitlement: "lending.vendors.write",
+    gates: {
+      create: ["bw-gate-vendor-step-write"],
+      // Sealed FIRST: a sealed step refuses the same way for everyone.
+      update: ["bw-gate-step-sealed", "bw-gate-vendor-step-write"],
+      delete: ["bw-gate-step-sealed"],
+    },
     actions: ["update"],
     key: { vendor_id: "uuid", fact_key: "slug" },
     fields: {

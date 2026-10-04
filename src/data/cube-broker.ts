@@ -16,14 +16,29 @@ import { getAccessToken } from "./lawdog-auth";
 import { mapRateRow, type LdRate } from "./lawdog-provider";
 import { getConfig } from "@/config";
 
+/**
+ * The rule a refused write was refused under (BOR-132) — the rule row's own
+ * key, version and words, as the broker read them from the rules table. Not
+ * upstream detail: it is the text the rule exists to show.
+ */
+export interface BrokerRule {
+  ruleKey: string;
+  version: number | null;
+  label: string;
+  description: string;
+}
+
 /** Codes only — the broker never returns detail, and neither does this. */
 export class BrokerError extends Error {
   code: string;
+  /** Present only when a gate rule refused the write. */
+  rule?: BrokerRule;
 
-  constructor(code: string) {
+  constructor(code: string, rule?: BrokerRule) {
     super(code);
     this.name = "BrokerError";
     this.code = code;
+    if (rule) this.rule = rule;
   }
 }
 
@@ -108,9 +123,9 @@ export async function brokerGet<T>(
  * server re-derives identity and tenant from the session, checks the body
  * against its own write allowlist, and hands the change to the wall on the
  * Cube, which decides. A refusal comes back as a `BrokerError` whose `code` is
- * the wall's own word for why — codes only, as everywhere else on this surface.
- * The words a person reads for that code come from the `can` route (BOR-132),
- * never from here.
+ * the wall's own word for why. When a gate rule refused, the error also carries
+ * `rule` — that rule's key and its own label/description, read server-side from
+ * the same row the `can` route reads (BOR-132). No words are made up here.
  *
  * NOTHING ABOUT THIS IS OPTIMISTIC. The promise resolves only after the server
  * has answered `{ok:true}` with the row as it now stands; a caller that paints
@@ -144,11 +159,29 @@ export async function brokerPost<T>(
   });
 
   const json = (await res.json().catch(() => null)) as
-    | { ok?: boolean; row?: T; change_id?: string; error?: string }
+    | {
+        ok?: boolean;
+        row?: T;
+        change_id?: string;
+        error?: string;
+        rule_key?: unknown;
+        version?: unknown;
+        label?: unknown;
+        description?: unknown;
+      }
     | null;
 
   if (!res.ok) {
-    throw new BrokerError(String(json?.error ? json.error : `http_${res.status}`));
+    const rule: BrokerRule | undefined =
+      json && typeof json.rule_key === "string"
+        ? {
+            ruleKey: json.rule_key,
+            version: typeof json.version === "number" ? json.version : null,
+            label: typeof json.label === "string" ? json.label : "",
+            description: typeof json.description === "string" ? json.description : "",
+          }
+        : undefined;
+    throw new BrokerError(String(json?.error ? json.error : `http_${res.status}`), rule);
   }
   if (!json || json.ok !== true || !json.row) throw new BrokerError("bad_payload");
 

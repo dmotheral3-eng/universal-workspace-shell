@@ -27,11 +27,18 @@
  * A REFUSAL IS AN ANSWER, NOT A FAILURE. The wall says `{ok:false, code}`; that
  * comes back as a 403 carrying the wall's own code. A 502 is reserved for the
  * case where the wall could not be asked at all.
+ *
+ * A REFUSAL NAMES ITS RULE (BOR-132). The wall's codes are unchanged; the
+ * broker maps each to the gate rule bound to this (resource, action) and
+ * returns `{refused, rule_key, label, description, version}` from that rule's
+ * own row — the same row the `can` route read before the click. A code with no
+ * gate behind it (`write_not_allowed`, `not_found`, …) stays a bare code.
  */
 
 import { meterAppAction } from "./meter.js";
 import { lookupWrite, type BrokerWrite } from "./resources.js";
 import { isEntitled, resolveTenant, verifyMasterSession } from "./identity.js";
+import { gateForCode, loadGates, requiredEntitlement } from "./gates.js";
 import {
   bearerFrom,
   refuse,
@@ -156,6 +163,18 @@ export async function handleWrite(req: BrokerRequest, deps: BrokerDeps): Promise
   const values = action === "delete" ? {} : readValues(write, body.values);
   if (!values) return refuse(400, "bad_field");
 
+  // 6b. THE GATES bound to this action, read from the rule rows. The wall is
+  //     asked to require the role gate's own entitlement — so what it refuses
+  //     on and what the refusal cites cannot be two different things. If the
+  //     rows cannot be read the wall is not asked at all: a write judged
+  //     against a rule nobody could read is not one this door lets through.
+  const gates = await loadGates(write.gates[action as BrokerWrite["actions"][number]] ?? [], grant.tenantId, deps);
+  const required = gates ? requiredEntitlement(gates) : null;
+  if (!gates || !required) {
+    log(`write_gate_unreadable resource=${name}`);
+    return refuse(502, "upstream_error");
+  }
+
   // An actor with no verified email is recorded by id rather than as "unknown":
   // the evidence row names whoever master said this was, or it names nobody.
   const actor = user.email ?? user.id;
@@ -178,7 +197,7 @@ export async function handleWrite(req: BrokerRequest, deps: BrokerDeps): Promise
         p_tenant: grant.tenantId,
         p_actor: actor,
         p_entitlements: grant.entitlements,
-        p_required: write.writeEntitlement,
+        p_required: required,
         p_resource: name,
         p_action: action,
         p_id: key,
@@ -213,7 +232,14 @@ export async function handleWrite(req: BrokerRequest, deps: BrokerDeps): Promise
     }
     log(`write_refused resource=${name} code=${code}`);
     const refusal: Json = { ok: false, error: code };
-    if (typeof verdict.rule_key === "string") refusal.rule_key = verdict.rule_key;
+    const rule = gateForCode(gates, code);
+    if (rule) {
+      refusal.refused = true;
+      refusal.rule_key = rule.ruleKey;
+      refusal.version = rule.version;
+      refusal.label = rule.label;
+      refusal.description = rule.description;
+    }
     if (typeof verdict.change_id === "string") refusal.change_id = verdict.change_id;
     return { status: 403, body: refusal, headers: JSON_HEADERS };
   }
