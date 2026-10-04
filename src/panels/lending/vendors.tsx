@@ -8,6 +8,7 @@ import {
 import { LD, LdEmpty, LdNote, dateOnly } from "@/panels/legal/ld-kit";
 import { LdPanelFrame, type LdExplainCopy } from "@/panels/legal/ld-panel-frame";
 import { EvidenceTable } from "./evidence-table";
+import { VendorStepEdit } from "./vendor-step-edit";
 import { useLendingData } from "./use-lending-data";
 
 /* ── Vendors — the third-party risk face (D-BWVENDOR-1, BOR-29) ───────────────
@@ -117,6 +118,35 @@ function VendorChecklist({ vendor, onBack }: { vendor: LendingVendor; onBack: ()
               // Said in both directions — a false is a fact, not a blank.
               { key: "sealed", header: "Sealed", cell: (i) => (i.sealed ? "yes" : "no") },
               { key: "detail", header: "Detail", cell: (i) => i.detail ?? "—" },
+              {
+                // Empty for anyone the gate rule refuses: the control is absent,
+                // not disabled (BOR-132). The server decides; see vendor-step-edit.
+                key: "edit",
+                header: "",
+                cell: (i) =>
+                  i.factKey ? (
+                    <VendorStepEdit
+                      step={{ vendorId: i.vendorId, factKey: i.factKey }}
+                      status={i.status}
+                      onChanged={(row) =>
+                        setItems((prev) =>
+                          prev
+                            ? prev.map((p) =>
+                                p.id === i.id
+                                  ? {
+                                      ...p,
+                                      status: typeof row.status === "string" ? row.status : p.status,
+                                      sealed: row.sealed === true,
+                                      detail: typeof row.detail === "string" ? row.detail : p.detail,
+                                    }
+                                  : p
+                              )
+                            : prev
+                        )
+                      }
+                    />
+                  ) : null,
+              },
               {
                 key: "recorded",
                 header: "Recorded",

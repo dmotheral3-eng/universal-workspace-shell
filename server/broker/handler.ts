@@ -24,6 +24,7 @@ import { meterAppAction } from "./meter.js";
 import { lookupResource, type BrokerResource } from "./resources.js";
 import { handleWrite } from "./write.js";
 import { handleWhoAmI } from "./whoami.js";
+import { handleCan } from "./can.js";
 import {
   entitledBookSlugs,
   isEntitled,
@@ -213,6 +214,9 @@ export async function handleCubeRequest(
   // The one name here that is not a Cube resource: the caller's own identity,
   // answered from master alone (BOR-131). It never reaches step 7.
   if (name === "whoami") return handleWhoAmI(req, deps);
+  // And the one that is a question about a write rather than a read (BOR-132):
+  // "may I", answered from the same rule rows the write door refuses with.
+  if (name === "can") return handleCan(req, deps);
   const resource = name ? lookupResource(name) : null;
   if (!resource) return refuse(404, "unknown_resource");
 
