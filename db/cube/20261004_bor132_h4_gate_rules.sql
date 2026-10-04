@@ -2,14 +2,28 @@
 -- wall's check order. Picked up as COS-3360.
 --
 -- TARGET: the Cube data plane (iofslupbvedjzmfmkdvx).
--- STATUS WHEN THIS FILE WAS WRITTEN: NOT APPLIED. The seat that wrote it was
--- refused the apply by its own permission layer, so this has been checked against
--- the live schema by READS only and has not been executed. Intended migration
--- name: `bor132_h4_gate_rules`. Until it is applied the broker cannot read a gate
--- rule, and every brokered write answers 502 `upstream_error` — shut, which is
--- the safe direction.
+-- APPLIED 2026-10-04 15:11Z as migration `bor132_h4_gate_rules` (Dave approved the
+-- apply in session). This file is that SQL. Verified after: three bw-gate-% rows,
+-- public.bw_v_gate_rules, fn_broker_write md5(prosrc) 52f4520bbe004352cc082362360616f5,
+-- the guard present, zero obligation instances on a gate rule.
 --
--- BUILT ON TWO RULINGS ON BOR-132 (2026-10-04). Ruling 2 says "the schema wins
+-- WHAT IS NOT IN IT, AND WHY. The rulings also asked for label/description on
+-- vendor-soc2-remediation. The first apply carried that UPDATE and was REFUSED,
+-- rolling the whole migration back:
+--
+--   RULE VERSION IMMUTABLE: rule_key=vendor-soc2-remediation version=1 body
+--   changed (50b812d3… -> <NULL>) without a version bump.
+--
+-- content_hash is a GENERATED column, and in a BEFORE UPDATE trigger a generated
+-- column on NEW is not computed yet — it reads NULL. So trg_rule_version_immutable
+-- sees "hash changed" on EVERY update of this table, whatever column moved: the
+-- table is append-only in practice, including for `active`. A label on that rule
+-- therefore needs a version 2 row, and version 1 cannot be switched off beside
+-- it. That is a decision (obligation.rule_change_decisions), not a data fill, and
+-- it is reported on BOR-132 rather than improvised here.
+--
+-- BUILT ON THE RULINGS ON BOR-132 (2026-10-04; ruling 3 ratified the substitutions
+-- and the guard and view below). Ruling 2 says "the schema wins
 -- where it is a wall", and where a CHECK / NOT NULL refuses a ruled value, to
 -- take the schema's nearest existing value and SAY SO. The substitutions:
 --
@@ -28,7 +42,7 @@
 --
 -- No constraint is widened, no row is deleted, no member is granted anything.
 --
--- ONE THING HERE THAT NEITHER RULING NAMED — obligation.fn_materialise_for_vendor.
+-- THE GUARD (ratified, ruling 3 call 2) — obligation.fn_materialise_for_vendor.
 -- It treats every active rule with a non-null condition as a vendor obligation,
 -- and matches by "no clause in condition->'all' fails". A gate condition has no
 -- 'all', so it matches VACUOUSLY: calling that function for any vendor would
@@ -86,18 +100,6 @@ VALUES
    'Risk sign-off required on a flagged decision.',
    'This decision is flagged for fair-lending review. Only a member holding the Risk role can sign it off. The attempt has been recorded.')
 ON CONFLICT (tenant_id, rule_key, version) DO NOTHING;
-
--- ------------------------------------------- 3. vendor-soc2-remediation text --
--- Both were NULL. Neither column is inside content_hash, so this passes the
--- version-immutable trigger at version 1. Only fills a blank; never overwrites.
-UPDATE obligation.obligation_rules
-   SET label = 'SOC 2 remediation due',
-       description = 'This vendor handles PII and its SOC 2 is not current. Remediation is owed before the next review.'
- WHERE tenant_id = '6f361690-9876-43e8-b5bd-9bba6c44ae68'
-   AND rule_key = 'vendor-soc2-remediation'
-   AND version = 1
-   AND label IS NULL
-   AND description IS NULL;
 
 -- ------------------------------------------------- 4. how the broker reads --
 -- The broker's credential cannot read schema `obligation` (no USAGE, no SELECT),
