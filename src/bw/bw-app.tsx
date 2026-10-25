@@ -16,9 +16,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  listBooks, listDecisions, listRegistryViews, listScanRows, recordDecision,
-  type DecisionEntry, type LenderBook, type RegistryView, type ScanRow,
+  listBooks, listDecisions, listRecords, listRegistryViews, listScanRows, recordDecision,
+  type DecisionEntry, type LenderBook, type RecordRow, type RegistryView, type ScanRow,
 } from "./data";
+import { RecordDetail, RecordRegister, recordRef } from "./record-register";
 import { ScanRegister, shortRef } from "./scan-register";
 import { ActionRegister } from "./action-register";
 import "@/styles/tokens.css";
@@ -35,6 +36,8 @@ export function BorrowWorksApp() {
   const [decisions, setDecisions] = useState<DecisionEntry[]>([]);
   const [busy, setBusy] = useState(false);
   const [writeError, setWriteError] = useState<string | null>(null);
+  const [records, setRecords] = useState<Load<RecordRow[]>>({ phase: "loading" });
+  const [openRecord, setOpenRecord] = useState<RecordRow | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -42,7 +45,9 @@ export function BorrowWorksApp() {
       try {
         const [v, b] = await Promise.all([listRegistryViews(), listBooks()]);
         if (!live) return;
-        setViews({ phase: "ready", data: v });
+        // One nav entry per view key: the registry carries a row per tenant.
+        const seen = new Set<string>();
+        setViews({ phase: "ready", data: v.filter((x) => (seen.has(x.viewKey) ? false : (seen.add(x.viewKey), true))) });
         setBooks(b);
         setBookId((cur) => cur ?? b[0]?.id ?? null);
         if (v.length && !v.some((x) => x.viewKey === "interactions")) setViewKey(v[0].viewKey);
@@ -63,6 +68,55 @@ export function BorrowWorksApp() {
       .catch((e) => live && setRows({ phase: "error", code: (e as Error).message }));
     return () => { live = false; };
   }, [bookId]);
+
+  const activeView = views.phase === "ready" ? views.data.find((v) => v.viewKey === viewKey) : undefined;
+  const activeResource = activeView?.resource ?? null;
+
+  useEffect(() => {
+    if (viewKey === "interactions" || !activeResource) return;
+    let live = true;
+    setRecords({ phase: "loading" });
+    setOpenRecord(null);
+    listRecords(activeResource, bookId)
+      .then((r) => live && setRecords({ phase: "ready", data: r }))
+      .catch((e) => live && setRecords({ phase: "error", code: (e as Error).message }));
+    return () => { live = false; };
+  }, [viewKey, activeResource, bookId]);
+
+  const recordKey = (row: RecordRow) => recordRef(viewKey.replace(/[^a-z]/gi, "").slice(0, 2).toUpperCase() || "RC", String(row.id ?? row.vendor_id ?? row.slug ?? ""));
+
+  const openRec = useCallback((row: RecordRow) => {
+    setOpenRecord(row);
+    setWriteError(null);
+    setDecisions([]);
+    listDecisions(recordKey(row)).then(setDecisions).catch(() => setDecisions([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewKey]);
+
+  const decideRecord = useCallback(
+    async (action: "confirmed" | "waived", reason: string) => {
+      if (!openRecord || !bookId) return;
+      setBusy(true);
+      setWriteError(null);
+      try {
+        const entry = await recordDecision({
+          bookId,
+          subjectKind: viewKey,
+          subjectRef: recordKey(openRecord),
+          action,
+          reason,
+          ruleVersion: String(openRecord.policy_version ?? openRecord.model_version ?? "unversioned"),
+        });
+        setDecisions((d) => [entry, ...d]);
+      } catch (e) {
+        setWriteError((e as Error).message);
+      } finally {
+        setBusy(false);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [openRecord, bookId, viewKey]
+  );
 
   const openRow = useCallback((row: ScanRow) => {
     setOpen(row);
@@ -166,7 +220,7 @@ export function BorrowWorksApp() {
                 <button
                   key={v.viewKey}
                   type="button"
-                  onClick={() => { setViewKey(v.viewKey); setOpen(null); }}
+                  onClick={() => { setViewKey(v.viewKey); setOpen(null); setOpenRecord(null); }}
                   className="mb-0.5 block w-full px-2.5 py-1.5 text-left text-[13px]"
                   style={{
                     background: on ? "var(--page)" : "transparent",
@@ -197,19 +251,41 @@ export function BorrowWorksApp() {
             </button>
           )}
 
+          {viewKey !== "interactions" && openRecord && (
+            <button
+              type="button"
+              onClick={() => setOpenRecord(null)}
+              className="mb-3 text-[11px]"
+              style={{ fontFamily: "var(--font-mono)", color: "var(--body)" }}
+            >
+              {activeView?.label ?? viewKey} <span style={{ color: "var(--faint)" }}>/</span> {recordKey(openRecord)}
+            </button>
+          )}
+
           {viewKey !== "interactions" ? (
-            <div className="text-sm" style={{ color: "var(--body)" }}>
-              <h1 className="text-2xl" style={{ fontFamily: "var(--font-display)", color: "var(--ink)" }}>
-                {views.phase === "ready"
-                  ? views.data.find((v) => v.viewKey === viewKey)?.label ?? viewKey
-                  : viewKey}
-              </h1>
-              <p className="mt-1">
-                This surface is registered and its rows are brokered, but the scan register
-                built under this dispatch covers monitored contact. Nothing is mocked here in
-                its place.
-              </p>
-            </div>
+            records.phase === "loading" ? (
+              <div className="text-sm" style={{ color: "var(--faint)" }}>Reading the record…</div>
+            ) : records.phase === "error" ? (
+              <div className="text-sm" style={{ color: "var(--down)" }}>The record did not answer ({records.code}).</div>
+            ) : openRecord ? (
+              <RecordDetail
+                title={activeView?.label ?? viewKey}
+                viewKey={viewKey}
+                row={openRecord}
+                decisions={decisions}
+                onDecide={decideRecord}
+                busy={busy}
+                error={writeError}
+              />
+            ) : (
+              <RecordRegister
+                title={activeView?.label ?? viewKey}
+                viewKey={viewKey}
+                rows={records.data}
+                bookLabel={bookLabel}
+                onOpen={openRec}
+              />
+            )
           ) : rows.phase === "loading" ? (
             <div className="text-sm" style={{ color: "var(--faint)" }}>Reading the record…</div>
           ) : rows.phase === "error" ? (
