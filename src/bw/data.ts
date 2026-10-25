@@ -91,6 +91,23 @@ export async function listScanRows(bookId: string): Promise<ScanRow[]> {
   }));
 }
 
+/** One row of any brokered resource, as the broker returns it. */
+export type RecordRow = Record<string, unknown>;
+
+/**
+ * Resources that accept the `book` narrowing. The broker refuses a filter it
+ * does not allowlist, so the client must not send `book` to a tenant-level
+ * resource (books, vendors). Names are broker RESOURCES, never tables.
+ */
+const BOOK_SCOPED = new Set([
+  "lending_decisions", "lending_interactions", "lending_changes", "lending_attestations", "lending_decision_log",
+]);
+
+export async function listRecords(resource: string, bookId: string | null): Promise<RecordRow[]> {
+  const params: Record<string, string> = BOOK_SCOPED.has(resource) && bookId ? { book: bookId } : {};
+  return brokerGet<Row>(resource, params);
+}
+
 export async function listDecisions(subjectRef: string): Promise<DecisionEntry[]> {
   const rows = await brokerGet<Row>("lending_decision_log", { subject_ref: subjectRef });
   return rows.map((r) => ({
