@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   completeOAuthRedirect,
   configureAuth,
@@ -14,6 +14,8 @@ import {
 } from "@/data/lawdog-auth";
 import { getAuthConfig, getConfig } from "@/config";
 import { trackDoorEvent } from "./door-analytics";
+import { groupTenant, identifyUser, resetUser } from "@/lib/analytics";
+import { whoAmI } from "@/data/refine-auth-provider";
 import { NO_EMAIL_MESSAGE, isMissingEmailError } from "./door-email-claim";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,6 +112,28 @@ export function LawDogGate({ children }: { children: ReactNode }) {
       unsubscribe();
     };
   }, [active, auth]);
+
+  // Analytics identity (COS-4073). Sign-in and session restore both arrive here
+  // as a session with an email; sign-out arrives as null after one. The tenant
+  // is only grouped when the broker RESOLVED it — never guessed.
+  const identifiedAs = useRef<string | null>(null);
+  const sessionEmail = session?.email ?? null;
+  useEffect(() => {
+    if (!active) return;
+    if (sessionEmail) {
+      if (identifiedAs.current === sessionEmail) return;
+      identifiedAs.current = sessionEmail;
+      identifyUser(sessionEmail);
+      void whoAmI()
+        .then((who) => {
+          if (who?.tenantState === "resolved" && who.tenant) groupTenant(who.tenant);
+        })
+        .catch(() => undefined);
+    } else if (ready && identifiedAs.current) {
+      identifiedAs.current = null;
+      resetUser();
+    }
+  }, [active, ready, sessionEmail]);
 
   if (!active) return <>{children}</>;
   if (!ready) return null;

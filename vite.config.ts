@@ -31,6 +31,13 @@ export default defineConfig({
     // code never enters the graph.
     profileBundlePlugin(__dirname),
   ],
+  // Every value matching one of these prefixes is inlined into the client
+  // bundle. VITE_ is Vite's default. NEXT_PUBLIC_POSTHOG_ is added ON PURPOSE
+  // and narrowly: the fleet-standard analytics key is NEXT_PUBLIC_POSTHOG_KEY
+  // (a public project token). Not all of NEXT_PUBLIC_ — the host injects its
+  // own system variables (commit message, author, branch…) under that prefix,
+  // and a broad prefix would ship them to browsers. See src/lib/analytics.ts.
+  envPrefix: ["VITE_", "NEXT_PUBLIC_POSTHOG_"],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
